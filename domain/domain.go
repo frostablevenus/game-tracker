@@ -2,12 +2,12 @@ package domain
 
 type PlayerRepository interface {
 	Store(player Player)
-	FindById(id int) Player
+	FindById(id int) (Player, error)
 }
 
 type GameRepository interface {
 	Store(game Game)
-	FindById(id int) Game
+	FindById(id int) (Game, error)
 }
 
 type Player struct {
