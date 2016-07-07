@@ -1,12 +1,12 @@
 package domain
 
 type PlayerRepository interface {
-	Store(player Player)
+	Store(player Player) error
 	FindById(id int) (Player, error)
 }
 
 type GameRepository interface {
-	Store(game Game)
+	Store(game Game) error
 	FindById(id int) (Game, error)
 }
 
