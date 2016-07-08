@@ -31,7 +31,14 @@ type User struct {
 type Library struct {
 	Id     int
 	Player domain.Player //This library belongs to some player
-	Games  []domain.Game
+	Games  []Game
+}
+
+type Game struct {
+	Id       int
+	Name     string
+	Producer string
+	Value    float64
 }
 
 type Logger interface {
@@ -45,8 +52,8 @@ type ProfileInteractor struct {
 	Logger            Logger
 }
 
-func (interactor *ProfileInteractor) ViewProfile(userId, libraryId int) (string, []domain.Game, error) {
-	var games []domain.Game
+func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) (string, []Game, error) {
+	var games []Game
 	user, err := interactor.UserRepository.FindById(userId)
 	if err != nil {
 		fmt.Println("User #%i does not exist", userId)
@@ -70,12 +77,12 @@ func (interactor *ProfileInteractor) ViewProfile(userId, libraryId int) (string,
 			library.Id,
 			library.Player.Id)
 		interactor.Logger.Log(err.Error())
-		games = make([]domain.Game, 0)
+		games = make([]Game, 0)
 		return info, games, err
 	} else {
-		games = make([]domain.Game, len(library.Games))
+		games = make([]Game, len(library.Games))
 		for i, game := range library.Games {
-			games[i] = domain.Game{game.Id, game.Name, game.Producer, game.Value}
+			games[i] = Game{game.Id, game.Name, game.Producer, game.Value}
 		}
 		return info, games, nil
 	}
@@ -87,7 +94,7 @@ func (interactor *ProfileInteractor) AddUser(player domain.Player, userName stri
 
 	// Application rule: usernames cannot repeat
 	if !interactor.UserRepository.IsUnique(userName) {
-		err := fmt.Errorf("Username #%s is taken")
+		err := fmt.Errorf("Username #%s is taken", userName)
 		interactor.Logger.Log(err.Error())
 		return err
 	}
@@ -101,9 +108,22 @@ func (interactor *ProfileInteractor) AddUser(player domain.Player, userName stri
 	return nil
 }
 
-func (interactor *ProfileInteractor) RemoveUser(userId int) error {
+func (interactor *ProfileInteractor) RemoveUser(playerId, userId int) error {
+	player, err := interactor.UserRepository.FindById(playerId)
+	if err != nil {
+		interactor.Logger.Log(err.Error())
+		return err
+	}
+
 	user, err := interactor.UserRepository.FindById(userId)
 	if err != nil {
+		interactor.Logger.Log(err.Error())
+		return err
+	}
+
+	if player.Id != user.Player.Id {
+		err := fmt.Errorf("Player #%i cannot remove user account of player #%i",
+			playerId, user.Player.Id)
 		interactor.Logger.Log(err.Error())
 		return err
 	}
@@ -150,7 +170,7 @@ func (interactor *ProfileInteractor) AddGame(userId, libraryId int, gameName, ga
 	}
 
 	gameId := len(library.Games)
-	game := domain.Game{gameId, gameName, gameProducer, gameValue}
+	game := Game{gameId, gameName, gameProducer, gameValue}
 	library.Games = append(library.Games, game)
 	err = interactor.LibraryRepository.Store(library)
 	if err != nil {
