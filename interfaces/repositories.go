@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"database/sql"
 	"fmt"
 
 	"game-tracker/domain"
@@ -8,7 +9,7 @@ import (
 )
 
 type DbHandler interface {
-	Execute(statement string) error
+	Execute(statement string) (sql.Result, error)
 	Query(statement string) (Row, error)
 }
 
@@ -35,7 +36,7 @@ func NewDbUserRepo(dbHandlers map[string]DbHandler) *DbUserRepo {
 }
 
 func (repo *DbUserRepo) Store(user usecases.User) error {
-	err := repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO users (id, user_name, player_id, personal_info)
+	_, err := repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO users (id, user_name, player_id, personal_info)
 		VALUES ('%d', '%s', '%d', '%s')`,
 		user.Id, user.Name, user.Player.Id, user.PersonalInfo))
 	if err != nil {
@@ -43,6 +44,11 @@ func (repo *DbUserRepo) Store(user usecases.User) error {
 	}
 	playerRepo := NewDbPlayerRepo(repo.dbHandlers)
 	err = playerRepo.Store(user.Player)
+	return err
+}
+
+func (repo *DbUserRepo) Remove(user usecases.User) error {
+	_, err := repo.dbHandler.Execute(fmt.Sprintf(`DELETE FROM users WHERE id='%i'`, user.Id))
 	return err
 }
 
@@ -73,6 +79,39 @@ func (repo *DbUserRepo) FindById(id int) (usecases.User, error) {
 	return user, nil
 }
 
+func (repo *DbUserRepo) Count() int {
+	row, _ := repo.dbHandler.Query(fmt.Sprintf(`SELECT user_name FROM users`))
+	count := 0
+	for row.Next() {
+		count++
+	}
+	return count
+}
+
+func (repo *DbUserRepo) NameExisted(userName string) bool {
+	row, _ := repo.dbHandler.Query(fmt.Sprintf(`SELECT user_name FROM users
+		WHERE user_name='%s' LIMIT 1`, userName))
+	return row.Next()
+}
+
+func (repo *DbUserRepo) StoreInfo(user usecases.User, info string) error {
+	_, err := repo.dbHandler.Execute(fmt.Sprintf(`UPDATE users SET personal_info='%s'
+		WHERE id='%i'`, info, user.Id))
+	return err
+}
+
+func (repo *DbUserRepo) LoadInfo(user usecases.User) (string, error) {
+	row, err := repo.dbHandler.Query(fmt.Sprintf(`SELECT personal_info FROM users
+		WHERE id='%i'`, user.Id))
+	if err != nil {
+		return "", nil
+	}
+	var info string
+	row.Next()
+	err = row.Scan(&info)
+	return info, err
+}
+
 func NewDbPlayerRepo(dbHandlers map[string]DbHandler) *DbPlayerRepo {
 	dbPlayerRepo := new(DbPlayerRepo)
 	dbPlayerRepo.dbHandlers = dbHandlers
@@ -81,7 +120,7 @@ func NewDbPlayerRepo(dbHandlers map[string]DbHandler) *DbPlayerRepo {
 }
 
 func (repo *DbPlayerRepo) Store(player domain.Player) error {
-	err := repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO players (id, name)
+	_, err := repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO players (id, name)
 		VALUES ('%d', '%v')`,
 		player.Id, player.Name))
 	return err
@@ -112,13 +151,13 @@ func NewDbLibraryRepo(dbHandlers map[string]DbHandler) *DbLibraryRepo {
 }
 
 func (repo *DbLibraryRepo) Store(library usecases.Library) error {
-	err := repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO libraries (id, player_id) VALUES ('%d', '%v')`,
+	_, err := repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO libraries (id, player_id) VALUES ('%d', '%v')`,
 		library.Id, library.Player.Id))
 	if err == nil {
 		return err
 	}
 	for _, item := range library.Games {
-		err = repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO gamesInLib (game_id, library_id)
+		_, err = repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO gamesInLib (game_id, library_id)
 			VALUES ('%d', '%d')`, item.Id, library.Id))
 		if err == nil {
 			return err
@@ -175,7 +214,7 @@ func NewDbGameRepo(dbHandlers map[string]DbHandler) *DbGameRepo {
 }
 
 func (repo *DbGameRepo) Store(game domain.Game) error {
-	err := repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO games (id, name, producer value)
+	_, err := repo.dbHandler.Execute(fmt.Sprintf(`INSERT INTO games (id, name, producer value)
     	VALUES ('%d', '%s', '%s', '%f')`, game.Id, game.Name, game.Producer, game.Value))
 	if err == nil {
 		return err
