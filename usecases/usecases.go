@@ -31,14 +31,7 @@ type User struct {
 type Library struct {
 	Id     int
 	Player domain.Player //This library belongs to some player
-	Games  []Game
-}
-
-type Game struct {
-	Id       int
-	Name     string
-	Producer string
-	Value    float64
+	Games  []domain.Game
 }
 
 type Logger interface {
@@ -52,8 +45,8 @@ type ProfileInteractor struct {
 	Logger            Logger
 }
 
-func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) (string, []Game, error) {
-	var games []Game
+func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) (string, []domain.Game, error) {
+	var games []domain.Game
 	user, err := interactor.UserRepository.FindById(userId)
 	if err != nil {
 		fmt.Println("User #%i does not exist", userId)
@@ -77,16 +70,15 @@ func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) (string,
 			library.Id,
 			library.Player.Id)
 		interactor.Logger.Log(err.Error())
-		games = make([]Game, 0)
+		games = make([]domain.Game, 0)
 		return info, games, err
 	} else {
-		games = make([]Game, len(library.Games))
+		games = make([]domain.Game, len(library.Games))
 		for i, game := range library.Games {
-			games[i] = Game{game.Id, game.Name, game.Producer, game.Value}
+			games[i] = domain.Game{game.Id, game.Name, game.Producer, game.Value}
 		}
 		return info, games, nil
 	}
-
 }
 
 func (interactor *ProfileInteractor) AddUser(player domain.Player, userName string) error {
@@ -170,7 +162,7 @@ func (interactor *ProfileInteractor) AddGame(userId, libraryId int, gameName, ga
 	}
 
 	gameId := len(library.Games)
-	game := Game{gameId, gameName, gameProducer, gameValue}
+	game := domain.Game{gameId, gameName, gameProducer, gameValue}
 	library.Games = append(library.Games, game)
 	err = interactor.LibraryRepository.Store(library)
 	if err != nil {

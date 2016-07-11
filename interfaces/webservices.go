@@ -7,11 +7,11 @@ import (
 	"strconv"
 
 	"game-tracker/domain"
-	"game-tracker/usecases"
+	//"game-tracker/usecases" // In production state uncomment this
 )
 
 type ProfileInteractor interface {
-	ShowLibrary(userId, libraryId int) (string, []usecases.Game, error)
+	ShowLibrary(userId, libraryId int) (string, []domain.Game, error)
 	AddUser(player domain.Player, userName string) error
 	RemoveUser(playerId, userId int) error
 	EditUserInfo(userId int, info string) error
