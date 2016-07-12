@@ -78,15 +78,14 @@ func (repo *DbUserRepo) FindById(id int) (usecases.User, error) {
 }
 
 func (repo *DbUserRepo) Count() (int, error) {
-	row, err := repo.dbHandler.Query("SELECT user_name FROM users")
+	row, err := repo.dbHandler.Query("SELECT COUNT(*) FROM users")
 	if err != nil {
 		return 0, err
 	}
-	count := 0
-	for row.Next() {
-		count++
-	}
-	return count, nil
+	var count int
+	row.Next()
+	err = row.Scan(&count)
+	return count, err
 }
 
 func (repo *DbUserRepo) NameExisted(userName string) (bool, error) {
