@@ -10,8 +10,8 @@ type UserRepository interface {
 	Store(user User) error
 	Remove(user User) error
 	FindById(id int) (User, error)
-	Count() int
-	NameExisted(userName string) bool
+	Count() (int, error)
+	NameExisted(userName string) (bool, error)
 	StoreInfo(user User, info string) error
 	LoadInfo(user User) (string, error)
 }
@@ -87,16 +87,24 @@ func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) (string,
 }
 
 func (interactor *ProfileInteractor) AddUser(player domain.Player, userName string) error {
-	user := User{interactor.UserRepository.Count(), userName, player, ""}
+	userCount, err := interactor.UserRepository.Count()
+	if err != nil {
+		return err
+	}
+	user := User{userCount, userName, player, ""}
 
 	// Application rule: usernames cannot repeat
-	if !interactor.UserRepository.NameExisted(userName) {
+	existed, err := interactor.UserRepository.NameExisted(userName)
+	if err != nil {
+		return err
+	}
+	if existed {
 		err := fmt.Errorf("Username #%s is taken", userName)
 		interactor.Logger.Log(err.Error())
 		return err
 	}
 
-	err := interactor.UserRepository.Store(user)
+	err = interactor.UserRepository.Store(user)
 	if err != nil {
 		interactor.Logger.Log(err.Error())
 		return err

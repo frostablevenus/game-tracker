@@ -77,19 +77,22 @@ func (repo *DbUserRepo) FindById(id int) (usecases.User, error) {
 	return user, nil
 }
 
-func (repo *DbUserRepo) Count() int {
-	row, _ := repo.dbHandler.Query("SELECT user_name FROM users")
+func (repo *DbUserRepo) Count() (int, error) {
+	row, err := repo.dbHandler.Query("SELECT user_name FROM users")
+	if err != nil {
+		return 0, err
+	}
 	count := 0
 	for row.Next() {
 		count++
 	}
-	return count
+	return count, nil
 }
 
-func (repo *DbUserRepo) NameExisted(userName string) bool {
-	row, _ := repo.dbHandler.Query(`SELECT user_name FROM users
+func (repo *DbUserRepo) NameExisted(userName string) (bool, error) {
+	row, err := repo.dbHandler.Query(`SELECT user_name FROM users
 		WHERE user_name=$1 LIMIT 1`, userName)
-	return row.Next()
+	return row.Next(), err
 }
 
 func (repo *DbUserRepo) StoreInfo(user usecases.User, info string) error {
@@ -101,7 +104,7 @@ func (repo *DbUserRepo) StoreInfo(user usecases.User, info string) error {
 func (repo *DbUserRepo) LoadInfo(user usecases.User) (string, error) {
 	row, err := repo.dbHandler.Query(`SELECT personal_info FROM users WHERE id=$1`, user.Id)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	var info string
 	row.Next()
@@ -148,13 +151,13 @@ func NewDbLibraryRepo(dbHandlers map[string]DbHandler) *DbLibraryRepo {
 func (repo *DbLibraryRepo) Store(library usecases.Library) error {
 	_, err := repo.dbHandler.Execute(`INSERT INTO libraries (player_id) VALUES ($1)`,
 		library.Player.Id)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	for _, game := range library.Games {
 		_, err = repo.dbHandler.Execute(`INSERT INTO gamesInLib (game_id, library_id)
 			VALUES ($1, $2)`, game.Id, library.Id)
-		if err == nil {
+		if err != nil {
 			return err
 		}
 	}
@@ -164,7 +167,7 @@ func (repo *DbLibraryRepo) Store(library usecases.Library) error {
 func (repo *DbLibraryRepo) FindById(id int) (usecases.Library, error) {
 	row, err := repo.dbHandler.Query(`SELECT player_id FROM libraries
 		WHERE id = $1 LIMIT 1`, id)
-	if err == nil {
+	if err != nil {
 		library := usecases.Library{}
 		return library, err
 	}
@@ -174,7 +177,7 @@ func (repo *DbLibraryRepo) FindById(id int) (usecases.Library, error) {
 	row.Scan(&playerId)
 	playerRepo := NewDbPlayerRepo(repo.dbHandlers)
 	player, err := playerRepo.FindById(playerId)
-	if err == nil {
+	if err != nil {
 		library := usecases.Library{}
 		return library, err
 	}
@@ -184,16 +187,16 @@ func (repo *DbLibraryRepo) FindById(id int) (usecases.Library, error) {
 	gameRepo := NewDbGameRepo(repo.dbHandlers)
 	row, err = repo.dbHandler.Query(`SELECT game_id FROM gamesInLib
 		WHERE library_id = $1`, library.Id)
-	if err == nil {
+	if err != nil {
 		return library, err
 	}
 	for row.Next() {
 		err = row.Scan(&gameId)
-		if err == nil {
+		if err != nil {
 			return library, err
 		}
 		game, err := gameRepo.FindById(gameId)
-		if err == nil {
+		if err != nil {
 			return library, err
 		}
 		library.Games = append(library.Games, game)
@@ -211,7 +214,7 @@ func NewDbGameRepo(dbHandlers map[string]DbHandler) *DbGameRepo {
 func (repo *DbGameRepo) Store(game domain.Game) error {
 	_, err := repo.dbHandler.Execute(`INSERT INTO games (game_name, producer, value)
     	VALUES ($1, $2, $3)`, game.Name, game.Producer, game.Value)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	return nil
@@ -220,7 +223,7 @@ func (repo *DbGameRepo) Store(game domain.Game) error {
 func (repo *DbGameRepo) FindById(id int) (domain.Game, error) {
 	row, err := repo.dbHandler.Query(`SELECT game_name, producer, value FROM items
     	WHERE id = $1 LIMIT 1`, id)
-	if err == nil {
+	if err != nil {
 		game := domain.Game{}
 		return game, err
 	}
@@ -229,7 +232,7 @@ func (repo *DbGameRepo) FindById(id int) (domain.Game, error) {
 	var value float64
 	row.Next()
 	err = row.Scan(&name, &producer, &value)
-	if err == nil {
+	if err != nil {
 		return domain.Game{}, err
 	}
 	game := domain.Game{Id: id, Name: name, Producer: producer, Value: value}
