@@ -11,9 +11,9 @@ type UserRepository interface {
 	Remove(user User) error
 	FindById(id int) (User, error)
 	Count() int
-	IsUnique(userName string) bool
-	StoreInfo(user User, info string)
-	LoadInfo(user User) string
+	NameExisted(userName string) bool
+	StoreInfo(user User, info string) error
+	LoadInfo(user User) (string, error)
 }
 
 type LibraryRepository interface {
@@ -53,7 +53,12 @@ func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) (string,
 		return "", nil, err
 	}
 
-	info := interactor.UserRepository.LoadInfo(user)
+	info, err := interactor.UserRepository.LoadInfo(user)
+	if err != nil {
+		err = fmt.Errorf("Error loading user personal information")
+		interactor.Logger.Log(err.Error())
+		return "", nil, err
+	}
 
 	library, err := interactor.LibraryRepository.FindById(libraryId)
 	if err != nil {
@@ -85,7 +90,7 @@ func (interactor *ProfileInteractor) AddUser(player domain.Player, userName stri
 	user := User{interactor.UserRepository.Count(), userName, player, ""}
 
 	// Application rule: usernames cannot repeat
-	if !interactor.UserRepository.IsUnique(userName) {
+	if !interactor.UserRepository.NameExisted(userName) {
 		err := fmt.Errorf("Username #%s is taken", userName)
 		interactor.Logger.Log(err.Error())
 		return err
@@ -131,7 +136,12 @@ func (interactor *ProfileInteractor) EditUserInfo(userId int, info string) error
 		interactor.Logger.Log(err.Error())
 		return err
 	}
-	interactor.UserRepository.StoreInfo(user, info)
+	err = interactor.UserRepository.StoreInfo(user, info)
+	if err != nil {
+		err = fmt.Errorf("Error loading user personal information")
+		interactor.Logger.Log(err.Error())
+		return err
+	}
 	interactor.Logger.Log(fmt.Sprintf("Editted information of user #%s (id #%i)", user.Name, user.Id))
 	return nil
 }

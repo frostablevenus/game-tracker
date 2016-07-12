@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"game-tracker/domain"
-	//"game-tracker/usecases" // In production state uncomment this
+	"game-tracker/usecases"
 )
 
 type ProfileInteractor interface {
@@ -20,7 +20,7 @@ type ProfileInteractor interface {
 }
 
 type WebserviceHandler struct {
-	ProfileInteractor ProfileInteractor //In production stage change this to usecases.ProfileInteractor
+	ProfileInteractor usecases.ProfileInteractor
 }
 
 func (handler WebserviceHandler) ShowLibrary(res http.ResponseWriter, req *http.Request) error {
