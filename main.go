@@ -25,10 +25,9 @@ func main() {
 		fmt.Println("Cannot read config file")
 		return
 	}
-	dbAddress := config.PostgresAdr
-	dbHandler, err := infrastructure.NewPostgresqlHandler(dbAddress)
+	dbHandler, err := infrastructure.NewPostgresqlHandler(config.PostgresAdr)
 	if err != nil {
-		fmt.Println("Cannot open database")
+		fmt.Println("Cannot open database", err)
 		return
 	}
 

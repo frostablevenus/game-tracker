@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"database/sql"
+	_ "github.com/lib/pq"
 
 	"game-tracker/interfaces"
 )
@@ -38,8 +39,8 @@ func (r PostgresqlRow) Next() bool {
 	return r.Rows.Next()
 }
 
-func NewPostgresqlHandler(dbfileName string) (*PostgresqlHandler, error) {
-	conn, err := sql.Open("postgres", dbfileName)
+func NewPostgresqlHandler(dbfileAdr string) (*PostgresqlHandler, error) {
+	conn, err := sql.Open("postgres", dbfileAdr)
 	if err != nil {
 		return new(PostgresqlHandler), err
 	}
