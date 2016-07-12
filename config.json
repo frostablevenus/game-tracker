@@ -1,0 +1,3 @@
+{
+	PostgresAdr: "postgres://postgres:postgres5263@127.0.0.1:5432/gameTrackerDb?sslmode=disable"
+}

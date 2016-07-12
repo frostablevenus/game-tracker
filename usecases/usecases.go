@@ -10,10 +10,10 @@ type UserRepository interface {
 	Store(user User) error
 	Remove(user User) error
 	FindById(id int) (User, error)
-	Count() int
-	IsUnique(userName string) bool
-	StoreInfo(user User, info string)
-	LoadInfo(user User) string
+	Count() (int, error)
+	NameExisted(userName string) (bool, error)
+	StoreInfo(user User, info string) error
+	LoadInfo(user User) (string, error)
 }
 
 type LibraryRepository interface {
@@ -53,7 +53,12 @@ func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) (string,
 		return "", nil, err
 	}
 
-	info := interactor.UserRepository.LoadInfo(user)
+	info, err := interactor.UserRepository.LoadInfo(user)
+	if err != nil {
+		err = fmt.Errorf("Error loading user personal information")
+		interactor.Logger.Log(err.Error())
+		return "", nil, err
+	}
 
 	library, err := interactor.LibraryRepository.FindById(libraryId)
 	if err != nil {
@@ -82,16 +87,24 @@ func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) (string,
 }
 
 func (interactor *ProfileInteractor) AddUser(player domain.Player, userName string) error {
-	user := User{interactor.UserRepository.Count(), userName, player, ""}
+	userCount, err := interactor.UserRepository.Count()
+	if err != nil {
+		return err
+	}
+	user := User{userCount, userName, player, ""}
 
 	// Application rule: usernames cannot repeat
-	if !interactor.UserRepository.IsUnique(userName) {
+	existed, err := interactor.UserRepository.NameExisted(userName)
+	if err != nil {
+		return err
+	}
+	if existed {
 		err := fmt.Errorf("Username #%s is taken", userName)
 		interactor.Logger.Log(err.Error())
 		return err
 	}
 
-	err := interactor.UserRepository.Store(user)
+	err = interactor.UserRepository.Store(user)
 	if err != nil {
 		interactor.Logger.Log(err.Error())
 		return err
@@ -131,7 +144,12 @@ func (interactor *ProfileInteractor) EditUserInfo(userId int, info string) error
 		interactor.Logger.Log(err.Error())
 		return err
 	}
-	interactor.UserRepository.StoreInfo(user, info)
+	err = interactor.UserRepository.StoreInfo(user, info)
+	if err != nil {
+		err = fmt.Errorf("Error loading user personal information")
+		interactor.Logger.Log(err.Error())
+		return err
+	}
 	interactor.Logger.Log(fmt.Sprintf("Editted information of user #%s (id #%i)", user.Name, user.Id))
 	return nil
 }
