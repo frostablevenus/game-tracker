@@ -1,16 +1,31 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"game-tracker/infrastructure"
 	"game-tracker/interfaces"
+	"game-tracker/models"
 	"game-tracker/usecases"
 )
 
 func main() {
-	dbAddress := "postgres://postgres:postgres5263@127.0.0.1:5432/gameTrackerDb?sslmode=disable"
+	file, err := os.Open("config.json")
+	if err != nil {
+		fmt.Println("Cannot open config file")
+		return
+	}
+	decoder := json.NewDecoder(file)
+	config := models.Configuration{}
+	err = decoder.Decode(&config)
+	if err != nil {
+		fmt.Println("Cannot read config file")
+		return
+	}
+	dbAddress := config.PostgresAdr
 	dbHandler, err := infrastructure.NewPostgresqlHandler(dbAddress)
 	if err != nil {
 		fmt.Println("Cannot open database")

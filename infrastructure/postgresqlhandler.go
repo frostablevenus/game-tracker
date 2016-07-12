@@ -10,17 +10,17 @@ type PostgresqlHandler struct {
 	Conn *sql.DB
 }
 
-func (handler *PostgresqlHandler) Execute(statement string) (sql.Result, error) {
-	res, err := handler.Conn.Exec(statement)
+func (handler *PostgresqlHandler) Execute(statement string, args ...interface{}) (sql.Result, error) {
+	res, err := handler.Conn.Exec(statement, args)
 	return res, err
 }
 
-func (handler *PostgresqlHandler) Query(statement string) (interfaces.Row, error) {
-	rows, err := handler.Conn.Query(statement)
-	if err != nil {
-		return new(PostgresqlRow), err
-	}
+func (handler *PostgresqlHandler) Query(statement string, args ...interface{}) (interfaces.Row, error) {
+	rows, err := handler.Conn.Query(statement, args)
 	r := new(PostgresqlRow)
+	if err != nil {
+		return r, err
+	}
 	r.Rows = rows
 	return r, nil
 }
