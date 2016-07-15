@@ -33,16 +33,21 @@ func (handler WebserviceHandler) ShowLibrary(res http.ResponseWriter, req *http.
 		return err
 	}
 
-	info, games, _ := handler.ProfileInteractor.ShowLibrary(userId, libraryId)
-	io.WriteString(res, fmt.Sprintf("User information: %s\n", info))
+	info, games, err := handler.ProfileInteractor.ShowLibrary(userId, libraryId)
+	if err != nil {
+		return err
+	}
 
+	io.WriteString(res, fmt.Sprintf("Library #%d of user #%d\n", libraryId, userId))
+	io.WriteString(res, fmt.Sprintf("User information: %s\n", info))
+	io.WriteString(res, fmt.Sprintf("Games: \n"))
 	for _, game := range games {
 		io.WriteString(res, fmt.Sprintf("game id: %d\n", game.Id))
 		io.WriteString(res, fmt.Sprintf("game name: %v\n", game.Name))
 		io.WriteString(res, fmt.Sprintf("game producer: %v\n", game.Producer))
-		io.WriteString(res, fmt.Sprintf("game value: %f\n\n", game.Value))
+		io.WriteString(res, fmt.Sprintf("game value: %s\n\n", game.Value))
 	}
-
+	fmt.Printf("Printed library #%d of user #%d\n", libraryId, userId)
 	return nil
 }
 
@@ -60,14 +65,15 @@ func (handler WebserviceHandler) AddUser(res http.ResponseWriter, req *http.Requ
 		return err
 	}
 
-	err = handler.ProfileInteractor.AddUser(domain.Player{playerId, playerName}, userName)
+	player := domain.Player{Id: playerId, Name: playerName}
+	err = handler.ProfileInteractor.AddUser(player, userName)
 	if err != nil {
 		return err
 	}
 
 	io.WriteString(res, fmt.Sprintf(
-		"Player '%s' (id #%i) created account with username: %s\n",
-		playerName, playerId, userName))
+		"Player '%s' (id #%d) created account with username: %s\n",
+		player.Name, player.Id, userName))
 	return nil
 }
 
@@ -86,7 +92,7 @@ func (handler WebserviceHandler) RemoveUser(res http.ResponseWriter, req *http.R
 		return err
 	}
 
-	io.WriteString(res, fmt.Sprintf("Player #%i deleted user account #%i\n", playerId, userId))
+	io.WriteString(res, fmt.Sprintf("Player #%d deleted user account #%d\n", playerId, userId))
 	return nil
 }
 
@@ -95,14 +101,50 @@ func (handler WebserviceHandler) EditUserInfo(res http.ResponseWriter, req *http
 	if err != nil {
 		return err
 	}
+	targetId, err := getFormTargetId(req)
+	if err != nil {
+		return err
+	}
 	info := req.FormValue("info")
+	err = handler.ProfileInteractor.EditUserInfo(userId, targetId, info)
+	if err != nil {
+		return err
+	}
+	io.WriteString(res, fmt.Sprintf("Added personal information for user #%d\n", userId))
+	return nil
+}
 
-	err = handler.ProfileInteractor.EditUserInfo(userId, info)
+func (handler WebserviceHandler) AddLibrary(res http.ResponseWriter, req *http.Request) error {
+	userId, err := getFormUserId(req)
+	if err != nil {
+		return err
+	}
+	err = handler.ProfileInteractor.AddLibrary(userId)
+	if err != nil {
+		return err
+	}
+	io.WriteString(res, fmt.Sprintf(
+		"User #%d added library", userId))
+	return nil
+}
+
+func (handler WebserviceHandler) RemoveLibrary(res http.ResponseWriter, req *http.Request) error {
+	userId, err := getFormUserId(req)
+	if err != nil {
+		return err
+	}
+	libraryId, err := getFormLibraryId(req)
 	if err != nil {
 		return err
 	}
 
-	io.WriteString(res, fmt.Sprintf("Added personal information for user #%i\n", userId))
+	err = handler.ProfileInteractor.RemoveLibrary(userId, libraryId)
+	if err != nil {
+		return err
+	}
+
+	io.WriteString(res, fmt.Sprintf(
+		"User #%d removed library #%d", userId, libraryId))
 	return nil
 }
 
@@ -134,7 +176,7 @@ func (handler WebserviceHandler) AddGame(res http.ResponseWriter, req *http.Requ
 	}
 
 	io.WriteString(res, fmt.Sprintf(
-		"User #%i added game to library #%i:\ngame id: %i\ngame name: %s\ngame producer: %s\ngame value: %v\n",
+		"User #%d added game to library #%d:\nGame name: %s\nGame producer: %s\nGame value: %s\n",
 		userId, libraryId, gameName, gameProducer, gameValue))
 	return nil
 }
@@ -158,7 +200,7 @@ func (handler WebserviceHandler) RemoveGame(res http.ResponseWriter, req *http.R
 		return err
 	}
 	io.WriteString(res, fmt.Sprintf(
-		"User #%i removed game (id #%i) from library #%i\n",
+		"User #%d removed game (id #%d) from library #%d\n",
 		userId, gameId, libraryId))
 	return nil
 }
@@ -181,6 +223,16 @@ func getFormUserId(req *http.Request) (int, error) {
 	}
 	userId, err := strconv.Atoi(form)
 	return userId, err
+}
+
+func getFormTargetId(req *http.Request) (int, error) {
+	var form string
+	if form = req.FormValue("targetId"); form == "" {
+		err := fmt.Errorf("targetId cannot be empty")
+		return 0, err
+	}
+	targetId, err := strconv.Atoi(form)
+	return targetId, err
 }
 
 func getFormLibraryId(req *http.Request) (int, error) {
@@ -239,12 +291,12 @@ func getFormGameProducer(req *http.Request) (string, error) {
 	return gameProducer, nil
 }
 
-func getFormGameValue(req *http.Request) (float64, error) {
+func getFormGameValue(req *http.Request) ([]uint8, error) {
 	var form string
 	if form = req.FormValue("gameValue"); form == "" {
 		err := fmt.Errorf("gameValue cannot be empty")
-		return 0, err
+		return []uint8{}, err
 	}
-	gameValue, err := strconv.ParseFloat(form, 64)
-	return gameValue, err
+	gameValue := []uint8(form)
+	return gameValue, nil
 }

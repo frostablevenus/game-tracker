@@ -5,11 +5,6 @@ type PlayerRepository interface {
 	FindById(id int) (Player, error)
 }
 
-type GameRepository interface {
-	Store(game Game) error
-	FindById(id int) (Game, error)
-}
-
 type Player struct {
 	Id   int
 	Name string
@@ -19,5 +14,7 @@ type Game struct {
 	Id       int
 	Name     string
 	Producer string
-	Value    float64
+	Value    []uint8
 }
+
+//Business rule: Player names cannot repeat (unique identification)

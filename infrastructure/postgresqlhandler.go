@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"database/sql"
+	//"fmt"
 	_ "github.com/lib/pq"
 
 	"game-tracker/interfaces"
@@ -12,17 +13,16 @@ type PostgresqlHandler struct {
 }
 
 func (handler *PostgresqlHandler) Execute(statement string, args ...interface{}) (sql.Result, error) {
-	res, err := handler.Conn.Exec(statement, args)
+	res, err := handler.Conn.Exec(statement, args...)
 	return res, err
 }
 
 func (handler *PostgresqlHandler) Query(statement string, args ...interface{}) (interfaces.Row, error) {
-	rows, err := handler.Conn.Query(statement, args)
-	r := new(PostgresqlRow)
+	rows, err := handler.Conn.Query(statement, args...)
 	if err != nil {
-		return r, err
+		return PostgresqlRow{}, err
 	}
-	r.Rows = rows
+	r := PostgresqlRow{Rows: rows}
 	return r, nil
 }
 
@@ -37,6 +37,11 @@ func (r PostgresqlRow) Scan(dest ...interface{}) error {
 
 func (r PostgresqlRow) Next() bool {
 	return r.Rows.Next()
+}
+
+func (r PostgresqlRow) Close() error {
+	err := r.Rows.Close()
+	return err
 }
 
 func NewPostgresqlHandler(dbfileAdr string) (*PostgresqlHandler, error) {

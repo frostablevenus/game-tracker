@@ -46,8 +46,62 @@ func main() {
 	webserviceHandler := interfaces.WebserviceHandler{}
 	webserviceHandler.ProfileInteractor = profileInteractor
 
-	http.HandleFunc("/library", func(res http.ResponseWriter, req *http.Request) {
-		webserviceHandler.ShowLibrary(res, req)
+	http.HandleFunc("/show_library", func(res http.ResponseWriter, req *http.Request) {
+		err := webserviceHandler.ShowLibrary(res, req)
+		if err != nil {
+			fmt.Println(err)
+		}
 	})
+
+	http.HandleFunc("/add_user", func(res http.ResponseWriter, req *http.Request) {
+		err := webserviceHandler.AddUser(res, req)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	http.HandleFunc("/remove_user", func(res http.ResponseWriter, req *http.Request) {
+		err := webserviceHandler.RemoveUser(res, req)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	http.HandleFunc("/edit_user_info", func(res http.ResponseWriter, req *http.Request) {
+		err := webserviceHandler.EditUserInfo(res, req)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	http.HandleFunc("/add_library", func(res http.ResponseWriter, req *http.Request) {
+		err := webserviceHandler.AddLibrary(res, req)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	http.HandleFunc("/remove_library", func(res http.ResponseWriter, req *http.Request) {
+		err := webserviceHandler.RemoveLibrary(res, req)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	http.HandleFunc("/add_game", func(res http.ResponseWriter, req *http.Request) {
+		err := webserviceHandler.AddGame(res, req)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	http.HandleFunc("/remove_game", func(res http.ResponseWriter, req *http.Request) {
+		err := webserviceHandler.RemoveGame(res, req)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	fmt.Println("Listening...")
 	http.ListenAndServe(":8080", nil)
 }
