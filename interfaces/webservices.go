@@ -38,15 +38,19 @@ func (handler WebserviceHandler) ShowLibrary(res http.ResponseWriter, req *http.
 		return err
 	}
 
-	io.WriteString(res, fmt.Sprintf("Library #%d of user #%d\n", libraryId, userId))
-	io.WriteString(res, fmt.Sprintf("User information: %s\n", info))
-	io.WriteString(res, fmt.Sprintf("Games: \n"))
-	for _, game := range games {
-		io.WriteString(res, fmt.Sprintf("game id: %d\n", game.Id))
-		io.WriteString(res, fmt.Sprintf("game name: %v\n", game.Name))
-		io.WriteString(res, fmt.Sprintf("game producer: %v\n", game.Producer))
-		io.WriteString(res, fmt.Sprintf("game value: %s\n\n", game.Value))
+	message := "Library #%d of user #%d\nUser information: %s\nGames: \n"
+	_, err = io.WriteString(res, fmt.Sprintf(message, libraryId, userId, info))
+	if err != nil {
+		return err
 	}
+	for _, game := range games {
+		message = "game id: %d\ngame name: %v\ngame producer: %v\ngame value: %s\n\n"
+		_, err = io.WriteString(res, fmt.Sprintf(message, game.Id, game.Name, game.Producer, game.Value))
+		if err != nil {
+			return err
+		}
+	}
+
 	fmt.Printf("Printed library #%d of user #%d\n", libraryId, userId)
 	return nil
 }
@@ -71,10 +75,9 @@ func (handler WebserviceHandler) AddUser(res http.ResponseWriter, req *http.Requ
 		return err
 	}
 
-	io.WriteString(res, fmt.Sprintf(
-		"Player '%s' (id #%d) created account with username: %s\n",
+	_, err = io.WriteString(res, fmt.Sprintf("Player '%s' (id #%d) created account with username: %s\n",
 		player.Name, player.Id, userName))
-	return nil
+	return err
 }
 
 func (handler WebserviceHandler) RemoveUser(res http.ResponseWriter, req *http.Request) error {
@@ -92,8 +95,8 @@ func (handler WebserviceHandler) RemoveUser(res http.ResponseWriter, req *http.R
 		return err
 	}
 
-	io.WriteString(res, fmt.Sprintf("Player #%d deleted user account #%d\n", playerId, userId))
-	return nil
+	_, err = io.WriteString(res, fmt.Sprintf("Player #%d deleted user account #%d\n", playerId, userId))
+	return err
 }
 
 func (handler WebserviceHandler) EditUserInfo(res http.ResponseWriter, req *http.Request) error {
@@ -110,8 +113,8 @@ func (handler WebserviceHandler) EditUserInfo(res http.ResponseWriter, req *http
 	if err != nil {
 		return err
 	}
-	io.WriteString(res, fmt.Sprintf("Added personal information for user #%d\n", userId))
-	return nil
+	_, err = io.WriteString(res, fmt.Sprintf("Added personal information for user #%d\n", userId))
+	return err
 }
 
 func (handler WebserviceHandler) AddLibrary(res http.ResponseWriter, req *http.Request) error {
@@ -123,9 +126,8 @@ func (handler WebserviceHandler) AddLibrary(res http.ResponseWriter, req *http.R
 	if err != nil {
 		return err
 	}
-	io.WriteString(res, fmt.Sprintf(
-		"User #%d added library", userId))
-	return nil
+	_, err = io.WriteString(res, fmt.Sprintf("User #%d added library", userId))
+	return err
 }
 
 func (handler WebserviceHandler) RemoveLibrary(res http.ResponseWriter, req *http.Request) error {
@@ -143,9 +145,8 @@ func (handler WebserviceHandler) RemoveLibrary(res http.ResponseWriter, req *htt
 		return err
 	}
 
-	io.WriteString(res, fmt.Sprintf(
-		"User #%d removed library #%d", userId, libraryId))
-	return nil
+	_, err = io.WriteString(res, fmt.Sprintf("User #%d removed library #%d", userId, libraryId))
+	return err
 }
 
 func (handler WebserviceHandler) AddGame(res http.ResponseWriter, req *http.Request) error {
@@ -175,10 +176,10 @@ func (handler WebserviceHandler) AddGame(res http.ResponseWriter, req *http.Requ
 		return err
 	}
 
-	io.WriteString(res, fmt.Sprintf(
+	_, err = io.WriteString(res, fmt.Sprintf(
 		"User #%d added game to library #%d:\nGame name: %s\nGame producer: %s\nGame value: %s\n",
 		userId, libraryId, gameName, gameProducer, gameValue))
-	return nil
+	return err
 }
 
 func (handler WebserviceHandler) RemoveGame(res http.ResponseWriter, req *http.Request) error {
@@ -199,10 +200,9 @@ func (handler WebserviceHandler) RemoveGame(res http.ResponseWriter, req *http.R
 	if err != nil {
 		return err
 	}
-	io.WriteString(res, fmt.Sprintf(
-		"User #%d removed game (id #%d) from library #%d\n",
+	_, err = io.WriteString(res, fmt.Sprintf("User #%d removed game (id #%d) from library #%d\n",
 		userId, gameId, libraryId))
-	return nil
+	return err
 }
 
 func getFormPlayerId(req *http.Request) (int, error) {
