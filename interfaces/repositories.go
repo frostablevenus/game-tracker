@@ -267,7 +267,7 @@ func (repo DbGameRepo) Store(game usecases.Game) error {
 }
 
 func (repo DbGameRepo) Remove(game usecases.Game) error {
-	_, err := repo.dbHandler.Execute(`DELETE FROM games WHERE game_id=$1`, game.Id+1)
+	_, err := repo.dbHandler.Execute(`DELETE FROM games WHERE game_id=$1`, game.Id)
 	return err
 }
 
@@ -292,7 +292,7 @@ func (repo DbGameRepo) FindById(id int) (usecases.Game, error) {
 		return usecases.Game{}, err
 	}
 
-	game := usecases.Game{LibraryId: libraryId, Name: name, Producer: producer, Value: value}
+	game := usecases.Game{Id: id, LibraryId: libraryId, Name: name, Producer: producer, Value: value}
 	return game, nil
 }
 

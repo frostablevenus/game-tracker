@@ -221,8 +221,7 @@ func (interactor *ProfileInteractor) AddGame(userId, libraryId int, gameName, ga
 		return err
 	}
 
-	gameId := len(library.Games) + 1
-	game := Game{Id: gameId, LibraryId: library.Id, Name: gameName, Producer: gameProducer, Value: gameValue}
+	game := Game{LibraryId: library.Id, Name: gameName, Producer: gameProducer, Value: gameValue}
 	err = interactor.GameRepository.Store(game)
 	if err != nil {
 		return err

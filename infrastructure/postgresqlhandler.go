@@ -31,8 +31,7 @@ type PostgresqlRow struct {
 }
 
 func (r PostgresqlRow) Scan(dest ...interface{}) error {
-	err := r.Rows.Scan(dest...)
-	return err
+	return r.Rows.Scan(dest...)
 }
 
 func (r PostgresqlRow) Next() bool {
@@ -40,8 +39,7 @@ func (r PostgresqlRow) Next() bool {
 }
 
 func (r PostgresqlRow) Close() error {
-	err := r.Rows.Close()
-	return err
+	return r.Rows.Close()
 }
 
 func NewPostgresqlHandler(dbfileAdr string) (*PostgresqlHandler, error) {
