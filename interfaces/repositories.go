@@ -38,12 +38,22 @@ func NewDbUserRepo(dbHandlers map[string]DbHandler) *DbUserRepo {
 }
 
 func (repo DbUserRepo) Store(user usecases.User) error {
-	_, err := repo.dbHandler.Execute(`INSERT INTO users (user_name, player_id, personal_info)
+	playerRepo := NewDbPlayerRepo(repo.dbHandlers)
+	match, err := playerRepo.NameMatchesId(user.Player.Name, user.Player.Id)
+	if err != nil {
+		return err
+	}
+	if !match {
+		err := fmt.Errorf("Player name does not match Id")
+		return err
+	}
+
+	_, err = repo.dbHandler.Execute(`INSERT INTO users (user_name, player_id, personal_info)
 		VALUES ($1, $2, $3)`, user.Name, user.Player.Id, user.PersonalInfo)
 	if err != nil {
 		return err
 	}
-	playerRepo := NewDbPlayerRepo(repo.dbHandlers)
+
 	err = playerRepo.Store(user.Player)
 	return err
 }
@@ -84,15 +94,20 @@ func (repo DbUserRepo) FindById(id int) (usecases.User, error) {
 }
 
 func (repo DbUserRepo) Count() (int, error) {
-	row, err := repo.dbHandler.Query("SELECT COUNT(*) FROM users")
+	//"SELECT COUNT(*)" returns number of row, not the last id in the database
+	row, err := repo.dbHandler.Query("SELECT id FROM users")
 	if err != nil {
 		return 0, err
 	}
 	var count int
 	defer row.Close()
-	row.Next()
-	err = row.Scan(&count)
-	return count, err
+	for row.Next() {
+		err = row.Scan(&count)
+		if err != nil {
+			return count, err
+		}
+	}
+	return count, nil
 }
 
 func (repo DbUserRepo) UserExisted(userName string) (bool, error) {
@@ -160,6 +175,13 @@ func (repo DbPlayerRepo) FindById(id int) (domain.Player, error) {
 func (repo DbPlayerRepo) playerExisted(playerName string) (bool, error) {
 	row, err := repo.dbHandler.Query(`SELECT player_name FROM players
 		WHERE player_name=$1 LIMIT 1`, playerName)
+	defer row.Close()
+	return row.Next(), err
+}
+
+func (repo DbPlayerRepo) NameMatchesId(playerName string, id int) (bool, error) {
+	row, err := repo.dbHandler.Query(`SELECT * FROM players
+		WHERE id=$1 AND player_name=$2 LIMIT 1`, id, playerName)
 	defer row.Close()
 	return row.Next(), err
 }
@@ -242,14 +264,19 @@ func (repo DbLibraryRepo) libraryExisted(id int) bool {
 }
 
 func (repo DbLibraryRepo) Count() (int, error) {
-	row, err := repo.dbHandler.Query(`SELECT COUNT(*) FROM libraries`)
+	//Same case here as Count() in DbUserRepo
+	row, err := repo.dbHandler.Query(`SELECT id FROM libraries`)
 	if err != nil {
 		return 0, err
 	}
 	var count int
 	defer row.Close()
-	row.Next()
-	err = row.Scan(&count)
+	for row.Next() {
+		err = row.Scan(&count)
+		if err != nil {
+			return count, err
+		}
+	}
 	return count, err
 }
 
