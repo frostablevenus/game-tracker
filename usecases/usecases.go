@@ -108,7 +108,7 @@ func (interactor *ProfileInteractor) AddUser(player domain.Player, userName stri
 		// interactor.Logger.Log(err.Error())
 		return err
 	}
-	user := User{userCount + 1, userName, player, ""}
+	user := User{Id: userCount + 1, Name: userName, Player: player, PersonalInfo: ""}
 	err = interactor.UserRepository.Store(user)
 	if err != nil {
 		// interactor.Logger.Log(err.Error())
