@@ -15,6 +15,8 @@ type ProfileInteractor interface {
 	AddUser(player domain.Player, userName string) error
 	RemoveUser(playerId, userId int) error
 	EditUserInfo(userId int, info string) error
+	AddLibrary(userId int) (int, error)
+	RemoveLibrary(userId, libraryId int) error
 	AddGame(userId, libraryId int, gameName, gameProducer string, gameValue float64) error
 	RemoveGame(userId, libraryId, gameId int) error
 }
@@ -70,13 +72,13 @@ func (handler WebserviceHandler) AddUser(res http.ResponseWriter, req *http.Requ
 	}
 
 	player := domain.Player{Id: playerId, Name: playerName}
-	err = handler.ProfileInteractor.AddUser(player, userName)
+	id, err := handler.ProfileInteractor.AddUser(player, userName)
 	if err != nil {
 		return err
 	}
 
-	_, err = io.WriteString(res, fmt.Sprintf("Player '%s' (id #%d) created account with username: %s\n",
-		player.Name, player.Id, userName))
+	_, err = io.WriteString(res, fmt.Sprintf("Player '%s' (id #%d) created user #%d with username: '%s\n'",
+		player.Name, player.Id, id, userName))
 	return err
 }
 
@@ -122,11 +124,11 @@ func (handler WebserviceHandler) AddLibrary(res http.ResponseWriter, req *http.R
 	if err != nil {
 		return err
 	}
-	err = handler.ProfileInteractor.AddLibrary(userId)
+	id, err := handler.ProfileInteractor.AddLibrary(userId)
 	if err != nil {
 		return err
 	}
-	_, err = io.WriteString(res, fmt.Sprintf("User #%d added library", userId))
+	_, err = io.WriteString(res, fmt.Sprintf("User #%d added library #%d", userId, id))
 	return err
 }
 
@@ -171,7 +173,7 @@ func (handler WebserviceHandler) AddGame(res http.ResponseWriter, req *http.Requ
 		return err
 	}
 
-	err = handler.ProfileInteractor.AddGame(userId, libraryId, gameName, gameProducer, gameValue)
+	_, err = handler.ProfileInteractor.AddGame(userId, libraryId, gameName, gameProducer, gameValue)
 	if err != nil {
 		return err
 	}

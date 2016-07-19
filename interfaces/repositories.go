@@ -11,6 +11,7 @@ import (
 type DbHandler interface {
 	Execute(statement string, args ...interface{}) (sql.Result, error)
 	Query(statement string, args ...interface{}) (Row, error)
+	QueryRow(statement string, args ...interface{}) (int, error)
 }
 
 type Row interface {
@@ -37,25 +38,25 @@ func NewDbUserRepo(dbHandlers map[string]DbHandler) *DbUserRepo {
 	return dbUserRepo
 }
 
-func (repo DbUserRepo) Store(user usecases.User) error {
+func (repo DbUserRepo) Store(user usecases.User) (int, error) {
 	playerRepo := NewDbPlayerRepo(repo.dbHandlers)
 	match, err := playerRepo.NameMatchesId(user.Player.Name, user.Player.Id)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if !match {
 		err := fmt.Errorf("Player name does not match Id")
-		return err
+		return 0, err
 	}
 
-	_, err = repo.dbHandler.Execute(`INSERT INTO users (user_name, player_id, personal_info)
-		VALUES ($1, $2, $3)`, user.Name, user.Player.Id, user.PersonalInfo)
+	id, err := repo.dbHandler.QueryRow(`INSERT INTO users (user_name, player_id, personal_info)
+		VALUES ($1, $2, $3) RETURNING id`, user.Name, user.Player.Id, user.PersonalInfo)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	err = playerRepo.Store(user.Player)
-	return err
+	return id, err
 }
 
 func (repo DbUserRepo) Remove(user usecases.User) error {
@@ -91,23 +92,6 @@ func (repo DbUserRepo) FindById(id int) (usecases.User, error) {
 	}
 	user := usecases.User{Id: id, Name: userName, Player: player, PersonalInfo: personalInfo}
 	return user, nil
-}
-
-func (repo DbUserRepo) Count() (int, error) {
-	//"SELECT COUNT(*)" returns number of row, not the last id in the database
-	row, err := repo.dbHandler.Query("SELECT id FROM users")
-	if err != nil {
-		return 0, err
-	}
-	var count int
-	defer row.Close()
-	for row.Next() {
-		err = row.Scan(&count)
-		if err != nil {
-			return count, err
-		}
-	}
-	return count, nil
 }
 
 func (repo DbUserRepo) UserExisted(userName string) (bool, error) {
@@ -193,23 +177,10 @@ func NewDbLibraryRepo(dbHandlers map[string]DbHandler) *DbLibraryRepo {
 	return dbLibraryRepo
 }
 
-func (repo DbLibraryRepo) Store(library usecases.Library) error {
-	if !repo.libraryExisted(library.Id) {
-		_, err := repo.dbHandler.Execute(`INSERT INTO libraries (user_id) VALUES ($1)`,
-			library.User.Id)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, game := range library.Games {
-		_, err := repo.dbHandler.Execute(`INSERT INTO games (game_id, library_id)
-			VALUES ($1, $2)`, game.Id, library.Id)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+func (repo DbLibraryRepo) Store(library usecases.Library) (int, error) {
+	id, err := repo.dbHandler.QueryRow(`INSERT INTO libraries (user_id) VALUES ($1) RETURNING id`,
+		library.User.Id)
+	return id, err
 }
 
 func (repo DbLibraryRepo) Remove(library usecases.Library) error {
@@ -237,7 +208,7 @@ func (repo DbLibraryRepo) FindById(id int) (usecases.Library, error) {
 
 	var gameId int
 	gameRepo := NewDbGameRepo(repo.dbHandlers)
-	row, err = repo.dbHandler.Query(`SELECT game_id FROM games WHERE library_id = $1`, library.Id)
+	row, err = repo.dbHandler.Query(`SELECT id FROM games WHERE library_id = $1`, library.Id)
 	if err != nil {
 		return library, err
 	}
@@ -263,23 +234,6 @@ func (repo DbLibraryRepo) libraryExisted(id int) bool {
 	return row.Next()
 }
 
-func (repo DbLibraryRepo) Count() (int, error) {
-	//Same case here as Count() in DbUserRepo
-	row, err := repo.dbHandler.Query(`SELECT id FROM libraries`)
-	if err != nil {
-		return 0, err
-	}
-	var count int
-	defer row.Close()
-	for row.Next() {
-		err = row.Scan(&count)
-		if err != nil {
-			return count, err
-		}
-	}
-	return count, err
-}
-
 func NewDbGameRepo(dbHandlers map[string]DbHandler) *DbGameRepo {
 	dbGameRepo := new(DbGameRepo)
 	dbGameRepo.dbHandlers = dbHandlers
@@ -287,20 +241,20 @@ func NewDbGameRepo(dbHandlers map[string]DbHandler) *DbGameRepo {
 	return dbGameRepo
 }
 
-func (repo DbGameRepo) Store(game usecases.Game) error {
-	_, err := repo.dbHandler.Execute(`INSERT INTO games (library_id, game_name, producer, value)
-    	VALUES ($1, $2, $3, $4)`, game.LibraryId, game.Name, game.Producer, game.Value)
-	return err
+func (repo DbGameRepo) Store(game usecases.Game) (int, error) {
+	id, err := repo.dbHandler.QueryRow(`INSERT INTO games (library_id, game_name, producer, value)
+    	VALUES ($1, $2, $3, $4) RETURNING id`, game.LibraryId, game.Name, game.Producer, game.Value)
+	return id, err
 }
 
 func (repo DbGameRepo) Remove(game usecases.Game) error {
-	_, err := repo.dbHandler.Execute(`DELETE FROM games WHERE game_id=$1`, game.Id)
+	_, err := repo.dbHandler.Execute(`DELETE FROM games WHERE id=$1`, game.Id)
 	return err
 }
 
 func (repo DbGameRepo) FindById(id int) (usecases.Game, error) {
 	row, err := repo.dbHandler.Query(`SELECT library_id, game_name, producer, value FROM games
-    	WHERE game_id = $1 LIMIT 1`, id)
+    	WHERE id = $1 LIMIT 1`, id)
 	if err != nil {
 		game := usecases.Game{}
 		return game, err

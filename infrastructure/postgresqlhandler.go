@@ -2,7 +2,6 @@ package infrastructure
 
 import (
 	"database/sql"
-	//"fmt"
 	_ "github.com/lib/pq"
 
 	"game-tracker/interfaces"
@@ -24,6 +23,12 @@ func (handler *PostgresqlHandler) Query(statement string, args ...interface{}) (
 	}
 	r := PostgresqlRow{Rows: rows}
 	return r, nil
+}
+
+func (handler *PostgresqlHandler) QueryRow(statement string, args ...interface{}) (int, error) {
+	var id int
+	err := handler.Conn.QueryRow(statement, args...).Scan(&id)
+	return id, err
 }
 
 type PostgresqlRow struct {

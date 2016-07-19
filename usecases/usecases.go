@@ -7,24 +7,22 @@ import (
 )
 
 type UserRepository interface {
-	Store(user User) error
+	Store(user User) (int, error)
 	Remove(user User) error
 	FindById(id int) (User, error)
-	Count() (int, error)
 	UserExisted(userName string) (bool, error)
 	StoreInfo(user User, info string) error
 	LoadInfo(user User) (string, error)
 }
 
 type LibraryRepository interface {
-	Store(library Library) error
+	Store(library Library) (int, error)
 	Remove(library Library) error
 	FindById(id int) (Library, error)
-	Count() (int, error)
 }
 
 type GameRepository interface {
-	Store(game Game) error
+	Store(game Game) (int, error)
 	Remove(game Game) error
 	FindById(id int) (Game, error)
 }
@@ -93,29 +91,25 @@ func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) (string,
 	}
 }
 
-func (interactor *ProfileInteractor) AddUser(player domain.Player, userName string) error {
-	userCount, err := interactor.UserRepository.Count()
-	if err != nil {
-		return err
-	}
+func (interactor *ProfileInteractor) AddUser(player domain.Player, userName string) (int, error) {
 	// Application rule: usernames cannot repeat
 	existed, err := interactor.UserRepository.UserExisted(userName)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if existed {
 		err := fmt.Errorf("Username '%s' is taken", userName)
 		// interactor.Logger.Log(err.Error())
-		return err
+		return 0, err
 	}
-	user := User{Id: userCount + 1, Name: userName, Player: player, PersonalInfo: ""}
-	err = interactor.UserRepository.Store(user)
+	user := User{Name: userName, Player: player, PersonalInfo: ""}
+	id, err := interactor.UserRepository.Store(user)
 	if err != nil {
 		// interactor.Logger.Log(err.Error())
-		return err
+		return 0, err
 	}
-	fmt.Printf("Added user #%d for player #%d\n", user.Id, player.Id)
-	return nil
+	fmt.Printf("Added user #%d for player #%d\n", id, player.Id)
+	return id, nil
 }
 
 func (interactor *ProfileInteractor) RemoveUser(playerId, userId int) error {
@@ -148,29 +142,25 @@ func (interactor *ProfileInteractor) EditUserInfo(userId, targetId int, info str
 	}
 	err = interactor.UserRepository.StoreInfo(user, info)
 	if err != nil {
-		err = fmt.Errorf("Error loading user personal information")
 		return err
 	}
 	fmt.Println(fmt.Sprintf("Editted information of user '%s' (id #%d)", user.Name, user.Id))
 	return nil
 }
 
-func (interactor *ProfileInteractor) AddLibrary(userId int) error {
+func (interactor *ProfileInteractor) AddLibrary(userId int) (int, error) {
 	user, err := interactor.UserRepository.FindById(userId)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	libraryCount, err := interactor.LibraryRepository.Count()
+
+	library := Library{User: user, Games: []Game{}}
+	id, err := interactor.LibraryRepository.Store(library)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	library := Library{libraryCount + 1, user, []Game{}}
-	err = interactor.LibraryRepository.Store(library)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("User #%d added library #%d\n", user.Id, library.Id)
-	return nil
+	fmt.Printf("User #%d added library #%d\n", user.Id, id)
+	return id, nil
 }
 
 func (interactor *ProfileInteractor) RemoveLibrary(userId, libraryId int) error {
@@ -202,34 +192,34 @@ func (interactor *ProfileInteractor) RemoveLibrary(userId, libraryId int) error 
 	return nil
 }
 
-func (interactor *ProfileInteractor) AddGame(userId, libraryId int, gameName, gameProducer string, gameValue []uint8) error {
+func (interactor *ProfileInteractor) AddGame(userId, libraryId int, gameName, gameProducer string, gameValue []uint8) (int, error) {
 	user, err := interactor.UserRepository.FindById(userId)
 	if err != nil {
 		// interactor.Logger.Log(err.Error())
-		return err
+		return 0, err
 	}
 	library, err := interactor.LibraryRepository.FindById(libraryId)
 	if err != nil {
 		// interactor.Logger.Log(err.Error())
-		return err
+		return 0, err
 	}
 
 	if user.Id != library.User.Id {
 		message := "User #%d is not allowed to add games to library #%d of user #%d"
 		err := fmt.Errorf(message, user.Id, library.Id, library.User.Id)
 		// interactor.Logger.Log(err.Error())
-		return err
+		return 0, err
 	}
 
 	game := Game{LibraryId: library.Id, Name: gameName, Producer: gameProducer, Value: gameValue}
-	err = interactor.GameRepository.Store(game)
+	id, err := interactor.GameRepository.Store(game)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	fmt.Println(fmt.Sprintf("User added game %s (id #%d) to library #%d",
-		game.Name, game.Id, library.Id))
-	return nil
+		game.Name, id, library.Id))
+	return id, nil
 }
 
 func (interactor *ProfileInteractor) RemoveGame(userId, libraryId, gameId int) error {
