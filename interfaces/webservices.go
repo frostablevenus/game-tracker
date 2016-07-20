@@ -2,303 +2,265 @@ package interfaces
 
 import (
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"io"
-	"net/http"
 	"strconv"
 
 	"game-tracker/domain"
+	"game-tracker/models/request"
 	"game-tracker/usecases"
 )
 
 type ProfileInteractor interface {
-	ShowLibrary(userId, libraryId int) (string, []domain.Game, error)
-	AddUser(player domain.Player, userName string) error
-	RemoveUser(playerId, userId int) error
-	EditUserInfo(userId int, info string) error
-	AddLibrary(userId int) (int, error)
-	RemoveLibrary(userId, libraryId int) error
-	AddGame(userId, libraryId int, gameName, gameProducer string, gameValue float64) error
-	RemoveGame(userId, libraryId, gameId int) error
+	AddUser(player domain.Player, userName string) (int, error, int)
+	ShowUser(userId int) ([]int, error, int)
+	RemoveUser(playerId, userId int) (error, int)
+	ShowUserInfo(userId int) (string, error, int)
+	EditUserInfo(userId int, info string) (error, int)
+	AddLibrary(userId int) (error, int)
+	ShowLibrary(userId, libraryId int) ([]domain.Game, error, int)
+	RemoveLibrary(userId, libraryId int) (error, int)
+	AddGame(userId, libraryId int, gameName, gameProducer string, gameValue float64) (int, error, int)
+	RemoveGame(userId, libraryId, gameId int) (error, int)
 }
 
 type WebserviceHandler struct {
 	ProfileInteractor usecases.ProfileInteractor
 }
 
-func (handler WebserviceHandler) ShowLibrary(res http.ResponseWriter, req *http.Request) error {
-	userId, err := getFormUserId(req)
+func (handler WebserviceHandler) AddUser(c *gin.Context) (error, int) {
+	user := request.User{}
+	err := c.BindJSON(&user)
 	if err != nil {
-		return err
-	}
-	libraryId, err := getFormLibraryId(req)
-	if err != nil {
-		return err
+		return err, 400
 	}
 
-	info, games, err := handler.ProfileInteractor.ShowLibrary(userId, libraryId)
+	player := domain.Player{Id: user.PlayerId, Name: user.PlayerName}
+	id, err, code := handler.ProfileInteractor.AddUser(player, user.Name)
 	if err != nil {
-		return err
+		return err, code
 	}
 
-	message := "Library #%d of user #%d\nUser information: %s\nGames: \n"
-	_, err = io.WriteString(res, fmt.Sprintf(message, libraryId, userId, info))
+	_, err = io.WriteString(c.Writer, fmt.Sprintf("Player '%s' (id #%d) created user #%d with username: '%s\n'",
+		player.Name, player.Id, id, user.Name))
 	if err != nil {
-		return err
+		return err, 500
+	}
+	return nil, 201
+}
+
+func (handler WebserviceHandler) ShowUser(c *gin.Context) (error, int) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return err, 400
+	}
+
+	libraryIds, err, code := handler.ProfileInteractor.ShowUser(userId)
+	if err != nil {
+		return err, code
+	}
+	_, err = io.WriteString(c.Writer, fmt.Sprintf("User #%d\nLibraries IDs:\n", userId))
+	if err != nil {
+		return err, 500
+	}
+	for _, libraryId := range libraryIds {
+		_, err = io.WriteString(c.Writer, fmt.Sprintf("#%d ", libraryId))
+		if err != nil {
+			return err, 500
+		}
+	}
+	fmt.Printf("Printed user #%d\n", userId)
+	return nil, 200
+}
+
+func (handler WebserviceHandler) RemoveUser(c *gin.Context) (error, int) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return err, 400
+	}
+
+	reqId, exist := c.GetQuery("playerId")
+	if !exist {
+		err = fmt.Errorf("playerId must not be empty")
+		return err, 400
+	}
+	playerId, err := strconv.Atoi(reqId)
+	if err != nil {
+		return err, 400
+	}
+
+	err, code := handler.ProfileInteractor.RemoveUser(playerId, userId)
+	if err != nil {
+		return err, code
+	}
+
+	_, err = io.WriteString(c.Writer, fmt.Sprintf("Player #%d deleted user account #%d\n", playerId, userId))
+	if err != nil {
+		return err, 500
+	}
+	return nil, 200
+}
+
+func (handler WebserviceHandler) ShowUserInfo(c *gin.Context) (error, int) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return err, 400
+	}
+
+	info, err, code := handler.ProfileInteractor.ShowUserInfo(userId)
+	if err != nil {
+		return err, code
+	}
+
+	_, err = io.WriteString(c.Writer, fmt.Sprintf("Information of user #%d:\n%s", userId, info))
+	if err != nil {
+		return err, 500
+	}
+	return nil, 200
+}
+
+func (handler WebserviceHandler) EditUserInfo(c *gin.Context) (error, int) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return err, 400
+	}
+	info := request.UserInfo{}
+	err = c.BindJSON(&info)
+	if err != nil {
+		return err, 400
+	}
+
+	err, code := handler.ProfileInteractor.EditUserInfo(userId, info.Info)
+	if err != nil {
+		return err, code
+	}
+	_, err = io.WriteString(c.Writer, fmt.Sprintf("Added personal information for user #%d\n", userId))
+	if err != nil {
+		return err, 500
+	}
+	return nil, 200
+}
+
+func (handler WebserviceHandler) AddLibrary(c *gin.Context) (error, int) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return err, 400
+	}
+	id, err, code := handler.ProfileInteractor.AddLibrary(userId)
+	if err != nil {
+		return err, code
+	}
+	_, err = io.WriteString(c.Writer, fmt.Sprintf("User #%d added library #%d", userId, id))
+	if err != nil {
+		return err, 500
+	}
+	return nil, 201
+}
+
+func (handler WebserviceHandler) ShowLibrary(c *gin.Context) (error, int) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return err, 400
+	}
+	libraryId, err := strconv.Atoi(c.Param("libId"))
+	if err != nil {
+		return err, 400
+	}
+
+	games, err, code := handler.ProfileInteractor.ShowLibrary(userId, libraryId)
+	if err != nil {
+		return err, code
+	}
+	_, err = io.WriteString(c.Writer, fmt.Sprintf("Library #%d of user #%d:\n",
+		libraryId, userId))
+	if err != nil {
+		return err, 500
 	}
 	for _, game := range games {
-		message = "game id: %d\ngame name: %v\ngame producer: %v\ngame value: %s\n\n"
-		_, err = io.WriteString(res, fmt.Sprintf(message, game.Id, game.Name, game.Producer, game.Value))
+		message := "Id: %d\nName: %v\nProducer: %v\nValue: %.2f\n\n"
+		_, err = io.WriteString(c.Writer, fmt.Sprintf(message, game.Id, game.Name, game.Producer, game.Value))
 		if err != nil {
-			return err
+			return err, 500
 		}
 	}
 
 	fmt.Printf("Printed library #%d of user #%d\n", libraryId, userId)
-	return nil
+	return nil, 200
 }
 
-func (handler WebserviceHandler) AddUser(res http.ResponseWriter, req *http.Request) error {
-	playerId, err := getFormPlayerId(req)
+func (handler WebserviceHandler) RemoveLibrary(c *gin.Context) (error, int) {
+	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err
+		return err, 400
 	}
-	playerName, err := getFormPlayerName(req)
+	libraryId, err := strconv.Atoi(c.Param("libId"))
 	if err != nil {
-		return err
-	}
-	userName, err := getFormUserName(req)
-	if err != nil {
-		return err
+		return err, 400
 	}
 
-	player := domain.Player{Id: playerId, Name: playerName}
-	id, err := handler.ProfileInteractor.AddUser(player, userName)
+	err, code := handler.ProfileInteractor.RemoveLibrary(userId, libraryId)
 	if err != nil {
-		return err
+		return err, code
 	}
 
-	_, err = io.WriteString(res, fmt.Sprintf("Player '%s' (id #%d) created user #%d with username: '%s\n'",
-		player.Name, player.Id, id, userName))
-	return err
+	_, err = io.WriteString(c.Writer, fmt.Sprintf("User #%d removed library #%d", userId, libraryId))
+	if err != nil {
+		return err, 500
+	}
+	return nil, 200
 }
 
-func (handler WebserviceHandler) RemoveUser(res http.ResponseWriter, req *http.Request) error {
-	userId, err := getFormUserId(req)
+func (handler WebserviceHandler) AddGame(c *gin.Context) (error, int) {
+	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err
+		return err, 400
 	}
-	playerId, err := getFormPlayerId(req)
+	libraryId, err := strconv.Atoi(c.Param("libId"))
 	if err != nil {
-		return err
+		return err, 400
+	}
+	game := request.Game{}
+	err = c.BindJSON(&game)
+	if err != nil {
+		return err, 400
 	}
 
-	err = handler.ProfileInteractor.RemoveUser(playerId, userId)
+	id, err, code := handler.ProfileInteractor.AddGame(userId, libraryId, game.Name, game.Producer, game.Value)
 	if err != nil {
-		return err
+		return err, code
 	}
 
-	_, err = io.WriteString(res, fmt.Sprintf("Player #%d deleted user account #%d\n", playerId, userId))
-	return err
+	_, err = io.WriteString(c.Writer, fmt.Sprintf(
+		"User #%d added game #%d to library #%d:\nGame name: %s\nGame producer: %s\nGame value: %.2f\n",
+		userId, id, libraryId, game.Name, game.Producer, game.Value))
+	if err != nil {
+		return err, 500
+	}
+	return nil, 201
 }
 
-func (handler WebserviceHandler) EditUserInfo(res http.ResponseWriter, req *http.Request) error {
-	userId, err := getFormUserId(req)
+func (handler WebserviceHandler) RemoveGame(c *gin.Context) (error, int) {
+	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err
+		return err, 400
 	}
-	targetId, err := getFormTargetId(req)
+	libraryId, err := strconv.Atoi(c.Param("libId"))
 	if err != nil {
-		return err
+		return err, 400
 	}
-	info := req.FormValue("info")
-	err = handler.ProfileInteractor.EditUserInfo(userId, targetId, info)
+	gameId, err := strconv.Atoi(c.Param("gameId"))
 	if err != nil {
-		return err
-	}
-	_, err = io.WriteString(res, fmt.Sprintf("Added personal information for user #%d\n", userId))
-	return err
-}
-
-func (handler WebserviceHandler) AddLibrary(res http.ResponseWriter, req *http.Request) error {
-	userId, err := getFormUserId(req)
-	if err != nil {
-		return err
-	}
-	id, err := handler.ProfileInteractor.AddLibrary(userId)
-	if err != nil {
-		return err
-	}
-	_, err = io.WriteString(res, fmt.Sprintf("User #%d added library #%d", userId, id))
-	return err
-}
-
-func (handler WebserviceHandler) RemoveLibrary(res http.ResponseWriter, req *http.Request) error {
-	userId, err := getFormUserId(req)
-	if err != nil {
-		return err
-	}
-	libraryId, err := getFormLibraryId(req)
-	if err != nil {
-		return err
+		return err, 400
 	}
 
-	err = handler.ProfileInteractor.RemoveLibrary(userId, libraryId)
+	err, code := handler.ProfileInteractor.RemoveGame(userId, libraryId, gameId)
 	if err != nil {
-		return err
+		return err, code
 	}
-
-	_, err = io.WriteString(res, fmt.Sprintf("User #%d removed library #%d", userId, libraryId))
-	return err
-}
-
-func (handler WebserviceHandler) AddGame(res http.ResponseWriter, req *http.Request) error {
-	userId, err := getFormUserId(req)
-	if err != nil {
-		return err
-	}
-	libraryId, err := getFormLibraryId(req)
-	if err != nil {
-		return err
-	}
-	gameName, err := getFormGameName(req)
-	if err != nil {
-		return err
-	}
-	gameProducer, err := getFormGameProducer(req)
-	if err != nil {
-		return err
-	}
-	gameValue, err := getFormGameValue(req)
-	if err != nil {
-		return err
-	}
-
-	_, err = handler.ProfileInteractor.AddGame(userId, libraryId, gameName, gameProducer, gameValue)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.WriteString(res, fmt.Sprintf(
-		"User #%d added game to library #%d:\nGame name: %s\nGame producer: %s\nGame value: %s\n",
-		userId, libraryId, gameName, gameProducer, gameValue))
-	return err
-}
-
-func (handler WebserviceHandler) RemoveGame(res http.ResponseWriter, req *http.Request) error {
-	userId, err := getFormUserId(req)
-	if err != nil {
-		return err
-	}
-	libraryId, err := getFormLibraryId(req)
-	if err != nil {
-		return err
-	}
-	gameId, err := getFormUserId(req)
-	if err != nil {
-		return err
-	}
-
-	err = handler.ProfileInteractor.RemoveGame(userId, libraryId, gameId)
-	if err != nil {
-		return err
-	}
-	_, err = io.WriteString(res, fmt.Sprintf("User #%d removed game (id #%d) from library #%d\n",
+	_, err = io.WriteString(c.Writer, fmt.Sprintf("User #%d removed game (id #%d) from library #%d\n",
 		userId, gameId, libraryId))
-	return err
-}
-
-func getFormPlayerId(req *http.Request) (int, error) {
-	var form string
-	if form = req.FormValue("playerId"); form == "" {
-		err := fmt.Errorf("playerId cannot be empty")
-		return 0, err
+	if err != nil {
+		return err, 500
 	}
-	playerId, err := strconv.Atoi(form)
-	return playerId, err
-}
-
-func getFormUserId(req *http.Request) (int, error) {
-	var form string
-	if form = req.FormValue("userId"); form == "" {
-		err := fmt.Errorf("userId cannot be empty")
-		return 0, err
-	}
-	userId, err := strconv.Atoi(form)
-	return userId, err
-}
-
-func getFormTargetId(req *http.Request) (int, error) {
-	var form string
-	if form = req.FormValue("targetId"); form == "" {
-		err := fmt.Errorf("targetId cannot be empty")
-		return 0, err
-	}
-	targetId, err := strconv.Atoi(form)
-	return targetId, err
-}
-
-func getFormLibraryId(req *http.Request) (int, error) {
-	var form string
-	if form = req.FormValue("libraryId"); form == "" {
-		err := fmt.Errorf("libraryId cannot be empty")
-		return 0, err
-	}
-	libraryId, err := strconv.Atoi(form)
-	return libraryId, err
-}
-
-func getFormGameId(req *http.Request) (int, error) {
-	var form string
-	if form = req.FormValue("gameId"); form == "" {
-		err := fmt.Errorf("gameId cannot be empty")
-		return 0, err
-	}
-	gameId, err := strconv.Atoi(form)
-	return gameId, err
-}
-
-func getFormPlayerName(req *http.Request) (string, error) {
-	playerName := req.FormValue("playerName")
-	if playerName == "" {
-		err := fmt.Errorf("playerName cannot be empty")
-		return "", err
-	}
-	return playerName, nil
-}
-
-func getFormUserName(req *http.Request) (string, error) {
-	userName := req.FormValue("userName")
-	if userName == "" {
-		err := fmt.Errorf("userName cannot be empty")
-		return "", err
-	}
-	return userName, nil
-}
-
-func getFormGameName(req *http.Request) (string, error) {
-	gameName := req.FormValue("gameName")
-	if gameName == "" {
-		err := fmt.Errorf("gameName cannot be empty")
-		return "", err
-	}
-	return gameName, nil
-}
-
-func getFormGameProducer(req *http.Request) (string, error) {
-	gameProducer := req.FormValue("gameProducer")
-	if gameProducer == "" {
-		err := fmt.Errorf("gameProducer cannot be empty")
-		return "", err
-	}
-	return gameProducer, nil
-}
-
-func getFormGameValue(req *http.Request) ([]uint8, error) {
-	var form string
-	if form = req.FormValue("gameValue"); form == "" {
-		err := fmt.Errorf("gameValue cannot be empty")
-		return []uint8{}, err
-	}
-	gameValue := []uint8(form)
-	return gameValue, nil
+	return nil, 200
 }

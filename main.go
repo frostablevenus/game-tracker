@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 
 	"game-tracker/infrastructure"
 	"game-tracker/interfaces"
-	"game-tracker/models"
+	"game-tracker/models/postgres"
+	"game-tracker/routes"
 	"game-tracker/usecases"
 )
 
@@ -19,7 +19,7 @@ func main() {
 		return
 	}
 	decoder := json.NewDecoder(file)
-	config := models.Configuration{}
+	config := postgres.Configuration{}
 	err = decoder.Decode(&config)
 	if err != nil {
 		fmt.Println("Cannot read config file")
@@ -46,62 +46,8 @@ func main() {
 	webserviceHandler := interfaces.WebserviceHandler{}
 	webserviceHandler.ProfileInteractor = profileInteractor
 
-	http.HandleFunc("/show_library", func(res http.ResponseWriter, req *http.Request) {
-		err := webserviceHandler.ShowLibrary(res, req)
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
-
-	http.HandleFunc("/add_user", func(res http.ResponseWriter, req *http.Request) {
-		err := webserviceHandler.AddUser(res, req)
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
-
-	http.HandleFunc("/remove_user", func(res http.ResponseWriter, req *http.Request) {
-		err := webserviceHandler.RemoveUser(res, req)
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
-
-	http.HandleFunc("/edit_user_info", func(res http.ResponseWriter, req *http.Request) {
-		err := webserviceHandler.EditUserInfo(res, req)
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
-
-	http.HandleFunc("/add_library", func(res http.ResponseWriter, req *http.Request) {
-		err := webserviceHandler.AddLibrary(res, req)
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
-
-	http.HandleFunc("/remove_library", func(res http.ResponseWriter, req *http.Request) {
-		err := webserviceHandler.RemoveLibrary(res, req)
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
-
-	http.HandleFunc("/add_game", func(res http.ResponseWriter, req *http.Request) {
-		err := webserviceHandler.AddGame(res, req)
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
-
-	http.HandleFunc("/remove_game", func(res http.ResponseWriter, req *http.Request) {
-		err := webserviceHandler.RemoveGame(res, req)
-		if err != nil {
-			fmt.Println(err)
-		}
-	})
+	engine := routes.CreateEngine(webserviceHandler)
 
 	fmt.Println("Listening...")
-	http.ListenAndServe(":8080", nil)
+	engine.Run(":8080")
 }
