@@ -240,11 +240,11 @@ func (repo DbLibraryRepo) FindById(id int) (usecases.Library, error, int) {
 	return library, err, 200
 }
 
-func (repo DbLibraryRepo) libraryExisted(id int) bool {
-	row, _ := repo.dbHandler.Query(`SELECT id FROM libraries
+func (repo DbLibraryRepo) libraryExisted(id int) (bool, error) {
+	row, err := repo.dbHandler.Query(`SELECT id FROM libraries
 		WHERE id=$1 LIMIT 1`, id)
 	defer row.Close()
-	return row.Next()
+	return row.Next(), err
 }
 
 func NewDbGameRepo(dbHandlers map[string]DbHandler) *DbGameRepo {
@@ -263,6 +263,13 @@ func (repo DbGameRepo) Store(game usecases.Game) (int, error) {
 func (repo DbGameRepo) Remove(game usecases.Game) error {
 	_, err := repo.dbHandler.Execute(`DELETE FROM games WHERE id=$1`, game.Id)
 	return err
+}
+
+func (repo DbGameRepo) GameExisted(name string, libraryId int) (bool, error) {
+	row, err := repo.dbHandler.Query(`SELECT id FROM games
+		WHERE game_name=$1 AND library_id=$2 LIMIT 1`, name, libraryId)
+	defer row.Close()
+	return row.Next(), err
 }
 
 func (repo DbGameRepo) FindById(id int) (usecases.Game, error, int) {

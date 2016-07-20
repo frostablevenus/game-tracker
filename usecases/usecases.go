@@ -26,6 +26,7 @@ type GameRepository interface {
 	Store(game Game) (int, error)
 	Remove(game Game) error
 	FindById(id int) (Game, error, int)
+	GameExisted(name string, libraryId int) (bool, error)
 }
 
 type User struct {
@@ -93,17 +94,17 @@ func (interactor *ProfileInteractor) AddUser(player domain.Player, userName stri
 	return id, nil, 201
 }
 
-func (interactor *ProfileInteractor) ShowUser(userId int) ([]int, error, int) {
+func (interactor *ProfileInteractor) ShowUser(userId int) (string, []int, error, int) {
 	user, err, code := interactor.UserRepository.FindById(userId)
 	if err != nil {
 		err = fmt.Errorf(fmt.Sprintf("User #%d does not exist", userId))
-		return nil, err, code
+		return "", nil, err, code
 	}
 	var libraryIds []int
 	for _, libraryId := range user.LibraryIds {
 		libraryIds = append(libraryIds, libraryId)
 	}
-	return libraryIds, nil, 200
+	return user.Name, libraryIds, nil, 200
 }
 
 func (interactor *ProfileInteractor) RemoveUser(playerId, userId int) (error, int) {
@@ -233,6 +234,15 @@ func (interactor *ProfileInteractor) AddGame(userId, libraryId int, gameName, ga
 	if user.Id != library.User.Id {
 		message := "User #%d is not allowed to add games to library #%d of user #%d"
 		err := fmt.Errorf(message, user.Id, library.Id, library.User.Id)
+		// interactor.Logger.Log(err.Error())
+		return 0, err, 403
+	}
+	existed, err := interactor.GameRepository.GameExisted(gameName, libraryId)
+	if err != nil {
+		return 0, err, 500
+	}
+	if existed {
+		err := fmt.Errorf("Game '%s' is already in library", gameName)
 		// interactor.Logger.Log(err.Error())
 		return 0, err, 403
 	}
