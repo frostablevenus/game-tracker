@@ -71,7 +71,7 @@ func (interactor *ProfileInteractor) AddUser(player domain.Player, userName stri
 	if existed {
 		err := fmt.Errorf("Username '%s' is taken", userName)
 		// interactor.Logger.Log(err.Error())
-		return 0, err, 403
+		return 0, err, 400
 	}
 
 	user := User{Name: userName, Player: player, PersonalInfo: ""}
@@ -244,7 +244,7 @@ func (interactor *ProfileInteractor) AddGame(userId, libraryId int, gameName, ga
 	if existed {
 		err := fmt.Errorf("Game '%s' is already in library", gameName)
 		// interactor.Logger.Log(err.Error())
-		return 0, err, 403
+		return 0, err, 400
 	}
 
 	game := Game{LibraryId: library.Id, Name: gameName, Producer: gameProducer, Value: gameValue}
