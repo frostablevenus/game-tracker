@@ -2,7 +2,8 @@ package domain
 
 type PlayerRepository interface {
 	Store(player Player) error
-	FindById(id int) (Player, error)
+	FindById(id int) (Player, error, int)
+	NameMatchesId(playerName string, id int) (bool, error)
 }
 
 type Player struct {
