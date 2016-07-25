@@ -14,6 +14,9 @@ type UserRepository interface {
 	StoreInfo(user User, info string) error
 	LoadInfo(user User) (string, error)
 	PlayerNameMatchesId(user User) (bool, error)
+	FindLoginId(username, password string) (int, bool, error)
+	AddLoginInfo(username, password string) error
+	RemoveLoginInfo(user User) error
 }
 
 type LibraryRepository interface {
@@ -62,7 +65,7 @@ type ProfileInteractor struct {
 	Loggr             LoggerRepository
 }
 
-func (interactor *ProfileInteractor) AddUser(player domain.Player, userName string) (int, error, int) {
+func (interactor *ProfileInteractor) AddUser(player domain.Player, userName, password string) (int, error, int) {
 	// Application rule: usernames cannot repeat
 	existed, err := interactor.UserRepository.UserExisted(userName)
 	if err != nil {
@@ -90,6 +93,11 @@ func (interactor *ProfileInteractor) AddUser(player domain.Player, userName stri
 		// interactor.Logger.Log(err.Error())
 		return 0, err, 500
 	}
+	err = interactor.UserRepository.AddLoginInfo(userName, password)
+	if err != nil {
+		return 0, err, 500
+	}
+
 	fmt.Printf("Added user #%d for player #%d\n", id, player.Id)
 	return id, nil, 201
 }
@@ -107,31 +115,37 @@ func (interactor *ProfileInteractor) ShowUser(userId int) (string, []int, error,
 	return user.Name, libraryIds, nil, 200
 }
 
-func (interactor *ProfileInteractor) RemoveUser(playerId, userId int) (error, int) {
+func (interactor *ProfileInteractor) RemoveUser(userId int) (error, int) {
 	user, err, code := interactor.UserRepository.FindById(userId)
 	if err != nil {
 		// interactor.Logger.Log(err.Error())
+		err = fmt.Errorf(fmt.Sprintf("User #%d does not exist", userId))
 		return err, code
 	}
 
-	if playerId != user.Player.Id {
-		err := fmt.Errorf("Player #%d cannot remove user account of player #%d",
-			playerId, user.Player.Id)
-		// interactor.Logger.Log(err.Error())
-		return err, 403
+	for _, libraryId := range user.LibraryIds {
+		err, code = interactor.RemoveLibrary(userId, libraryId)
+		if err != nil {
+			return err, code
+		}
 	}
 	err = interactor.UserRepository.Remove(user)
 	if err != nil {
 		return err, 500
 	}
+	err = interactor.UserRepository.RemoveLoginInfo(user)
+	if err != nil {
+		return err, 500
+	}
 	// interactor.Logger.Log(fmt.Sprintf("Removed user #%s (id #%d)", user.Name, user.Id))
-	fmt.Printf("Player #%d deleted user #%d\n", playerId, user.Id)
+	fmt.Printf("Deleted user #%d\n", userId)
 	return nil, 200
 }
 
 func (interactor *ProfileInteractor) ShowUserInfo(userId int) (string, error, int) {
 	user, err, code := interactor.UserRepository.FindById(userId)
 	if err != nil {
+		err = fmt.Errorf(fmt.Sprintf("User #%d does not exist", userId))
 		return "", err, code
 	}
 	info, err := interactor.UserRepository.LoadInfo(user)
@@ -286,4 +300,17 @@ func (interactor *ProfileInteractor) RemoveGame(userId, libraryId, gameId int) (
 		return err, 500
 	}
 	return nil, 200
+}
+
+func (interactor *ProfileInteractor) FindLoginId(username, password string) (int, error, int) {
+	id, exist, err := interactor.UserRepository.FindLoginId(username, password)
+	if err != nil {
+		return 0, err, 500
+	}
+	if !exist {
+		err := fmt.Errorf("Username/password incorrect")
+		return 0, err, 400
+	}
+	fmt.Printf("Found login id: #%d\n", id)
+	return id, nil, 200
 }

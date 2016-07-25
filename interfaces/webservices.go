@@ -12,9 +12,9 @@ import (
 )
 
 type ProfileInteractor interface {
-	AddUser(player domain.Player, userName string) (int, error, int)
+	AddUser(player domain.Player, userName, password string) (int, error, int)
 	ShowUser(userId int) (string, []int, error, int)
-	RemoveUser(playerId, userId int) (error, int)
+	RemoveUser(userId int) (error, int)
 	ShowUserInfo(userId int) (string, error, int)
 	EditUserInfo(userId int, info string) (error, int)
 	AddLibrary(userId int) (error, int)
@@ -22,6 +22,7 @@ type ProfileInteractor interface {
 	RemoveLibrary(userId, libraryId int) (error, int)
 	AddGame(userId, libraryId int, gameName, gameProducer string, gameValue float64) (int, error, int)
 	RemoveGame(userId, libraryId, gameId int) (error, int)
+	FindLoginId(username, password string) (int, error, int)
 }
 
 type WebserviceHandler struct {
@@ -36,7 +37,7 @@ func (handler WebserviceHandler) AddUser(c *gin.Context) (error, int, string) {
 	}
 
 	player := domain.Player{Id: user.PlayerId, Name: user.PlayerName}
-	id, err, code := handler.ProfileInteractor.AddUser(player, user.Name)
+	id, err, code := handler.ProfileInteractor.AddUser(player, user.Name, user.Password)
 	if err != nil {
 		return err, code, ""
 	}
@@ -74,22 +75,12 @@ func (handler WebserviceHandler) RemoveUser(c *gin.Context) (error, int, string)
 		return err, 400, ""
 	}
 
-	reqId, exist := c.GetQuery("playerId")
-	if !exist {
-		err = fmt.Errorf("playerId must not be empty")
-		return err, 400, ""
-	}
-	playerId, err := strconv.Atoi(reqId)
-	if err != nil {
-		return err, 400, ""
-	}
-
-	err, code := handler.ProfileInteractor.RemoveUser(playerId, userId)
+	err, code := handler.ProfileInteractor.RemoveUser(userId)
 	if err != nil {
 		return err, code, ""
 	}
 
-	message := fmt.Sprintf("Player #%d deleted user account #%d\n", playerId, userId)
+	message := fmt.Sprintf("Removed user account #%d\n", userId)
 	fmt.Printf("Deleted user #%d\n", userId)
 	return nil, 200, message
 }
@@ -128,7 +119,7 @@ func (handler WebserviceHandler) EditUserInfo(c *gin.Context) (error, int, strin
 		return err, code, ""
 	}
 
-	message := fmt.Sprintf("Added personal information for user #%d\n", userId)
+	message := fmt.Sprintf("Editted personal information for user #%d\n", userId)
 	fmt.Printf("Editted info of user #%d\n", userId)
 	return nil, 200, message
 }
