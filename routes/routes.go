@@ -16,7 +16,7 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		if err != nil {
 			c.AbortWithError(code, err)
 		} else {
-			c.JSON(code, tokenString)
+			c.JSON(code, gin.H{"token": tokenString})
 		}
 	})
 
