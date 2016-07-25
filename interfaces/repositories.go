@@ -95,7 +95,7 @@ func (repo DbUserRepo) FindById(id int) (usecases.User, error, int) {
 		}
 		user.LibraryIds = append(user.LibraryIds, libraryId)
 	}
-	return user, err, 200
+	return user, nil, 200
 }
 
 func (repo DbUserRepo) UserExisted(userName string) (bool, error) {
@@ -125,11 +125,54 @@ func (repo DbUserRepo) LoadInfo(user usecases.User) (string, error) {
 
 func (repo DbUserRepo) PlayerNameMatchesId(user usecases.User) (bool, error) {
 	playerRepo := NewDbPlayerRepo(repo.dbHandlers)
-	match, err := playerRepo.nameMatchesId(user.Player.Name, user.Player.Id)
+	existed, err := playerRepo.playerExisted(user.Player.Name)
 	if err != nil {
 		return false, err
 	}
-	return match, nil
+	if existed {
+		match, err := playerRepo.nameMatchesId(user.Player.Name, user.Player.Id)
+		if err != nil {
+			return false, err
+		}
+		if !match {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func (repo DbUserRepo) AddLoginInfo(username, password string) error {
+	_, err := repo.dbHandler.Execute(`INSERT INTO loginInfo (username, password)
+		VALUES ($1, $2)`, username, password)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (repo DbUserRepo) FindLoginId(username, password string) (int, bool, error) {
+	row, err := repo.dbHandler.Query(`SELECT id FROM loginInfo WHERE username=$1
+		AND password=$2 LIMIT 1`, username, password)
+	if err != nil {
+		return 0, false, err
+	}
+
+	var id int
+	defer row.Close()
+	exist := row.Next()
+	if !exist {
+		return 0, false, nil
+	}
+	err = row.Scan(&id)
+	if err != nil {
+		return 0, true, err
+	}
+	return id, true, nil
+}
+
+func (repo DbUserRepo) RemoveLoginInfo(user usecases.User) error {
+	_, err := repo.dbHandler.Execute(`DELETE FROM loginInfo WHERE username=$1`, user.Name)
+	return err
 }
 
 func NewDbPlayerRepo(dbHandlers map[string]DbHandler) *DbPlayerRepo {
