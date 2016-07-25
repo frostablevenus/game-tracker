@@ -22,19 +22,19 @@ func CheckToken() gin.HandlerFunc {
 				}
 				return []byte("5230"), nil
 			})
-		if claims, ok := token.Claims.(jwt.MapClaims); !(ok && token.Valid) {
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !(ok && token.Valid) {
 			c.AbortWithError(403, err)
-		} else {
-			id, err := strconv.Atoi(c.Param("id"))
-			if err != nil {
-				c.AbortWithError(400, err)
-			}
-			if int(claims["id"].(float64)) == id {
-				c.Next()
-			} else {
-				err := fmt.Errorf("Id in token and query mismatch")
-				c.AbortWithError(403, err)
-			}
 		}
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.AbortWithError(400, err)
+		}
+		if int(claims["id"].(float64)) != id {
+			err := fmt.Errorf("Id in token and query mismatch")
+			c.AbortWithError(403, err)
+		}
+		c.Next()
 	}
 }
