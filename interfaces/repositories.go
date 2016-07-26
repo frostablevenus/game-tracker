@@ -187,12 +187,12 @@ func (repo DbPlayerRepo) Store(player domain.Player) error {
 	if err != nil {
 		return err
 	}
-	if !existed {
-		_, err = repo.dbHandler.Execute(`INSERT INTO players (player_name)
-		VALUES ($1)`, player.Name)
-		return err
+	if existed {
+		return nil
 	}
-	return nil
+	_, err = repo.dbHandler.Execute(`INSERT INTO players (player_name)
+		VALUES ($1)`, player.Name)
+	return err
 }
 
 func (repo DbPlayerRepo) FindById(id int) (domain.Player, error, int) {
@@ -263,8 +263,7 @@ func (repo DbLibraryRepo) FindById(id int) (usecases.Library, error, int) {
 	library := usecases.Library{Id: id, User: user}
 
 	var gameId int
-	gameRepo := NewDbGameRepo(repo.dbHandlers)
-	row, err = repo.dbHandler.Query(`SELECT id FROM games WHERE library_id = $1`, library.Id)
+	row, err = repo.dbHandler.Query(`SELECT id FROM gamesInLib WHERE library_id = $1`, library.Id)
 	if err != nil {
 		return library, err, 500
 	}
@@ -274,20 +273,9 @@ func (repo DbLibraryRepo) FindById(id int) (usecases.Library, error, int) {
 		if err != nil {
 			return library, err, 404
 		}
-		game, err, code := gameRepo.FindById(gameId)
-		if err != nil {
-			return library, err, code
-		}
-		library.Games = append(library.Games, game)
+		library.GameIds = append(library.GameIds, gameId)
 	}
 	return library, err, 200
-}
-
-func (repo DbLibraryRepo) libraryExisted(id int) (bool, error) {
-	row, err := repo.dbHandler.Query(`SELECT id FROM libraries
-		WHERE id=$1 LIMIT 1`, id)
-	defer row.Close()
-	return row.Next(), err
 }
 
 func NewDbGameRepo(dbHandlers map[string]DbHandler) *DbGameRepo {
@@ -298,9 +286,30 @@ func NewDbGameRepo(dbHandlers map[string]DbHandler) *DbGameRepo {
 }
 
 func (repo DbGameRepo) Store(game usecases.Game) (int, error) {
-	id, err := repo.dbHandler.QueryRow(`INSERT INTO games (library_id, game_name, producer, value)
-    	VALUES ($1, $2, $3, $4) RETURNING id`, game.LibraryId, game.Name, game.Producer, game.Value)
-	return id, err
+	id, existed, err := repo.gameExisted(game.Name)
+	if !existed {
+		id, err = repo.dbHandler.QueryRow(`INSERT INTO games (name, producer, value)
+    	VALUES ($1, $2, $3) RETURNING id`, game.Name, game.Producer, game.Value)
+		return id, err
+	}
+	return id, nil
+}
+
+func (repo DbGameRepo) AddToLib(gameId, libraryId int) (error, int) {
+	existed, err := repo.gameExistedInLib(gameId, libraryId)
+	if err != nil {
+		return err, 500
+	}
+	if existed {
+		err = fmt.Errorf("Game already existed in library")
+		return err, 400
+	}
+	_, err = repo.dbHandler.Execute(`INSERT INTO gamesInLib (game_id, library_id)
+		VALUES ($1, $2)`, gameId, libraryId)
+	if err != nil {
+		return err, 500
+	}
+	return nil, 200
 }
 
 func (repo DbGameRepo) Remove(game usecases.Game) error {
@@ -308,34 +317,56 @@ func (repo DbGameRepo) Remove(game usecases.Game) error {
 	return err
 }
 
-func (repo DbGameRepo) GameExisted(name string, libraryId int) (bool, error) {
+func (repo DbGameRepo) gameExisted(name string) (int, bool, error) {
 	row, err := repo.dbHandler.Query(`SELECT id FROM games
-		WHERE game_name=$1 AND library_id=$2 LIMIT 1`, name, libraryId)
+		WHERE name=$1 LIMIT 1`, name)
+	if err != nil {
+		return 0, false, err
+	}
+
+	exist := row.Next()
+	if !exist {
+		return 0, false, nil
+	}
+	var id int
 	defer row.Close()
-	return row.Next(), err
+	err = row.Scan(&id)
+	if err != nil {
+		return 0, false, err
+	}
+	return id, true, nil
+}
+
+func (repo DbGameRepo) gameExistedInLib(gameId, libraryId int) (bool, error) {
+	row, err := repo.dbHandler.Query(`SELECT id FROM gamesInLib
+		WHERE game_id=$1 AND library_id=$2 LIMIT 1`, gameId, libraryId)
+	if err != nil {
+		return false, err
+	}
+	defer row.Close()
+	return row.Next(), nil
 }
 
 func (repo DbGameRepo) FindById(id int) (usecases.Game, error, int) {
-	row, err := repo.dbHandler.Query(`SELECT library_id, game_name, producer, value FROM games
+	row, err := repo.dbHandler.Query(`SELECT name, producer, value FROM games
     	WHERE id = $1 LIMIT 1`, id)
 	if err != nil {
 		return usecases.Game{}, err, 500
 	}
 	var (
-		libraryId int
-		name      string
-		producer  string
-		value     float64
+		name     string
+		producer string
+		value    float64
 	)
 
 	defer row.Close()
 	row.Next()
-	err = row.Scan(&libraryId, &name, &producer, &value)
+	err = row.Scan(&name, &producer, &value)
 	if err != nil {
 		return usecases.Game{}, err, 404
 	}
 
-	game := usecases.Game{Id: id, LibraryId: libraryId, Name: name, Producer: producer, Value: value}
+	game := usecases.Game{Id: id, Name: name, Producer: producer, Value: value}
 	return game, nil, 200
 }
 

@@ -102,6 +102,14 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 			c.String(code, message)
 		}
 	})
+	games.POST("/:gameId", func(c *gin.Context) {
+		err, code, message := webserviceHandler.PickGame(c)
+		if err != nil {
+			c.AbortWithError(code, err)
+		} else {
+			c.String(code, message)
+		}
+	})
 	games.DELETE("/:gameId", func(c *gin.Context) {
 		err, code, message := webserviceHandler.RemoveGame(c)
 		if err != nil {

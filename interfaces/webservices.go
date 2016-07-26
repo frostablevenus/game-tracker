@@ -149,7 +149,7 @@ func (handler WebserviceHandler) ShowLibrary(c *gin.Context) (error, int, result
 		return err, 400, result.Library{}
 	}
 
-	games, err, code := handler.ProfileInteractor.ShowLibrary(userId, libraryId)
+	gameIds, err, code := handler.ProfileInteractor.ShowLibrary(userId, libraryId)
 	if err != nil {
 		return err, code, result.Library{}
 	}
@@ -157,12 +157,8 @@ func (handler WebserviceHandler) ShowLibrary(c *gin.Context) (error, int, result
 	var message result.Library
 	message.Id = libraryId
 	message.UserId = userId
-	for _, game := range games {
-		message.Games = append(message.Games, result.Game{
-			Id:       game.Id,
-			Name:     game.Name,
-			Producer: game.Producer,
-			Value:    game.Value})
+	for _, gameId := range gameIds {
+		message.GamesIds = append(message.GamesIds, gameId)
 	}
 	fmt.Printf("Printed library #%d\n", libraryId)
 	return nil, 200, message
@@ -208,8 +204,32 @@ func (handler WebserviceHandler) AddGame(c *gin.Context) (error, int, string) {
 		return err, code, ""
 	}
 
-	message := fmt.Sprintf("User #%d added game #%d to library #%d\n", userId, id, libraryId)
+	message := fmt.Sprintf("User #%d added game #%d to list, library #%d\n", userId, id, libraryId)
 	fmt.Printf("Added game #%d\n", id)
+	return nil, 201, message
+}
+
+func (handler WebserviceHandler) PickGame(c *gin.Context) (error, int, string) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return err, 400, ""
+	}
+	libraryId, err := strconv.Atoi(c.Param("libId"))
+	if err != nil {
+		return err, 400, ""
+	}
+	gameId, err := strconv.Atoi(c.Param("gameId"))
+	if err != nil {
+		return err, 400, ""
+	}
+
+	err, code := handler.ProfileInteractor.PickGame(userId, libraryId, gameId)
+	if err != nil {
+		return err, code, ""
+	}
+
+	message := fmt.Sprintf("User #%d added game #%d to library #%d\n", userId, gameId, libraryId)
+	fmt.Printf("Added game #%d\n", gameId)
 	return nil, 201, message
 }
 

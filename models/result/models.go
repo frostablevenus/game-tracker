@@ -19,7 +19,7 @@ type Game struct {
 }
 
 type Library struct {
-	Id     int
-	UserId int
-	Games  []Game
+	Id       int
+	UserId   int
+	GamesIds []int
 }
