@@ -28,7 +28,7 @@ type LibraryRepository interface {
 type GameRepository interface {
 	Store(game Game) (int, error)
 	AddToLib(gameId, libraryId int) (error, int)
-	Remove(game Game) error
+	RemoveFromLib(game Game, libraryId int) error
 	FindById(id int) (Game, error, int)
 }
 
@@ -223,7 +223,7 @@ func (interactor *ProfileInteractor) RemoveLibrary(userId, libraryId int) (error
 		if err != nil {
 			return err, code
 		}
-		err = interactor.GameRepository.Remove(game)
+		err = interactor.GameRepository.RemoveFromLib(game, libraryId)
 		if err != nil {
 			return err, 500
 		}
@@ -316,7 +316,7 @@ func (interactor *ProfileInteractor) RemoveGame(userId, libraryId, gameId int) (
 		return err, code
 	}
 
-	err = interactor.GameRepository.Remove(game)
+	err = interactor.GameRepository.RemoveFromLib(game, libraryId)
 	if err != nil {
 		return err, 500
 	}

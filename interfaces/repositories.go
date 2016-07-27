@@ -312,8 +312,9 @@ func (repo DbGameRepo) AddToLib(gameId, libraryId int) (error, int) {
 	return nil, 200
 }
 
-func (repo DbGameRepo) Remove(game usecases.Game) error {
-	_, err := repo.dbHandler.Execute(`DELETE FROM games WHERE id=$1`, game.Id)
+func (repo DbGameRepo) RemoveFromLib(game usecases.Game, libraryId int) error {
+	_, err := repo.dbHandler.Execute(`DELETE FROM gamesInLib WHERE game_id=$1 AND library_id=$2`,
+		game.Id, libraryId)
 	return err
 }
 
