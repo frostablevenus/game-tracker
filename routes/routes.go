@@ -13,9 +13,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 	engine.Use(gin.Logger(), gin.Recovery())
 
 	engine.POST("/login", func(c *gin.Context) {
-		tokenString, err, code := webserviceHandler.Login(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		tokenString, errors, code := webserviceHandler.Login(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.JSON(201, gin.H{
 				"data": gin.H{
@@ -30,9 +34,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 
 	unAuth := engine.Group("/users")
 	unAuth.GET("/:id", func(c *gin.Context) {
-		err, code, message := webserviceHandler.ShowUser(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, message := webserviceHandler.ShowUser(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			libraries := []gin.H{}
 			for _, libraryId := range message.LibraryIds {
@@ -63,9 +71,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	unAuth.POST("", func(c *gin.Context) {
-		err, code, message := webserviceHandler.AddUser(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, message := webserviceHandler.AddUser(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.JSON(201, gin.H{
 				"data": gin.H{
@@ -82,9 +94,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	unAuth.GET("/:id/info", func(c *gin.Context) {
-		err, code, message := webserviceHandler.ShowUserInfo(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, message := webserviceHandler.ShowUserInfo(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.JSON(200, gin.H{
 				"links": gin.H{
@@ -115,17 +131,25 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 
 	users := authorized.Group("")
 	users.DELETE("", func(c *gin.Context) {
-		err, code, _ := webserviceHandler.RemoveUser(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, _ := webserviceHandler.RemoveUser(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.Status(204)
 		}
 	})
 	users.PUT("/info", func(c *gin.Context) {
-		err, code, message := webserviceHandler.EditUserInfo(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, message := webserviceHandler.EditUserInfo(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.JSON(201, gin.H{
 				"data": gin.H{
@@ -153,9 +177,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 
 	libraries := users.Group("/libraries")
 	libraries.GET("/:libId", func(c *gin.Context) {
-		err, code, message := webserviceHandler.ShowLibrary(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, message := webserviceHandler.ShowLibrary(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			games := []gin.H{}
 			for _, gameId := range message.GamesIds {
@@ -192,9 +220,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	libraries.POST("", func(c *gin.Context) {
-		err, code, message := webserviceHandler.AddLibrary(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, message := webserviceHandler.AddLibrary(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.JSON(201, gin.H{
 				"data": gin.H{
@@ -218,9 +250,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	libraries.DELETE("/:libId", func(c *gin.Context) {
-		err, code, _ := webserviceHandler.RemoveLibrary(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, _ := webserviceHandler.RemoveLibrary(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.Status(204)
 		}
@@ -228,9 +264,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 
 	games := libraries.Group("/:libId/games")
 	games.POST("", func(c *gin.Context) {
-		err, code, message := webserviceHandler.AddGame(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, message := webserviceHandler.AddGame(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.JSON(code, gin.H{
 				"data": gin.H{
@@ -260,9 +300,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	games.POST("/:gameId", func(c *gin.Context) {
-		err, code, message := webserviceHandler.PickGame(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, message := webserviceHandler.PickGame(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.JSON(code, gin.H{
 				"data": gin.H{
@@ -287,9 +331,13 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	games.DELETE("/:gameId", func(c *gin.Context) {
-		err, code, _ := webserviceHandler.RemoveGame(c)
-		if err != nil {
-			c.AbortWithError(code, err)
+		errors, code, _ := webserviceHandler.RemoveGame(c)
+		if errors.Errs != nil {
+			errs := webserviceHandler.GetViewError(errors)
+			c.JSON(code, gin.H{
+				"errors": errs,
+			})
+			c.Abort()
 		} else {
 			c.Status(204)
 		}

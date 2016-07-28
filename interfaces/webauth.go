@@ -6,23 +6,34 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"game-tracker/models/request"
+	"game-tracker/models/result"
 )
 
-func (handler WebserviceHandler) Login(c *gin.Context) (string, error, int) {
+func (handler WebserviceHandler) Login(c *gin.Context) (string, result.Errors, int) {
 	loginInfo := request.LoginInfo{}
-	err := c.BindJSON(&loginInfo)
-	if err != nil {
-		return "", err, 400
+	errors := result.Errors{}
+	errMsg := c.BindJSON(&loginInfo)
+	if errMsg != nil {
+		err := result.Error{Message: errMsg}
+		errors.Errs = append(errors.Errs, err)
+		return "", errors, 400
 	}
-	id, err, code := handler.ProfileInteractor.FindLoginId(loginInfo.Username, loginInfo.Password)
-	if err != nil {
-		return "", err, code
+
+	id, errMsg, code := handler.ProfileInteractor.FindLoginId(loginInfo.Username, loginInfo.Password)
+	if errMsg != nil {
+		err := result.Error{Message: errMsg}
+		errors.Errs = append(errors.Errs, err)
+		return "", errors, code
 	}
-	tokenString, err := createToken(id)
-	if err != nil {
-		return "", err, 500
+
+	tokenString, errMsg := createToken(id)
+	if errMsg != nil {
+		err := result.Error{Message: errMsg}
+		errors.Errs = append(errors.Errs, err)
+		return "", errors, 500
 	}
-	return tokenString, nil, 200
+
+	return tokenString, errors, 200
 }
 
 func createToken(id int) (string, error) {
