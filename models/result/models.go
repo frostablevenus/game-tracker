@@ -49,12 +49,3 @@ type LibraryAdd struct {
 type LibraryDelete struct {
 	Id int `json:"libraryId"`
 }
-
-type Errors struct {
-	Errs []Error `json:"errors"`
-}
-
-type Error struct {
-	Field   string `json:"field"`
-	Message error  `json:"message"`
-}

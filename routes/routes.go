@@ -6,21 +6,18 @@ import (
 
 	"game-tracker/interfaces"
 	"game-tracker/middlewares/auth"
+	"game-tracker/middlewares/errres"
 )
 
 func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 	engine := gin.New()
 	engine.Use(gin.Logger(), gin.Recovery())
+	engine.Use(errres.ErrorHandle())
 
 	engine.POST("/login", func(c *gin.Context) {
-		tokenString, errors, code := webserviceHandler.Login(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		tokenString, code := webserviceHandler.Login(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.JSON(201, gin.H{
 				"data": gin.H{
 					"type": "token",
@@ -34,14 +31,9 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 
 	unAuth := engine.Group("/users")
 	unAuth.GET("/:id", func(c *gin.Context) {
-		errors, code, message := webserviceHandler.ShowUser(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, message := webserviceHandler.ShowUser(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			libraries := []gin.H{}
 			for _, libraryId := range message.LibraryIds {
 				libraries = append(libraries, gin.H{
@@ -71,14 +63,9 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	unAuth.POST("", func(c *gin.Context) {
-		errors, code, message := webserviceHandler.AddUser(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, message := webserviceHandler.AddUser(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.JSON(201, gin.H{
 				"data": gin.H{
 					"type": "users",
@@ -94,14 +81,9 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	unAuth.GET("/:id/info", func(c *gin.Context) {
-		errors, code, message := webserviceHandler.ShowUserInfo(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, message := webserviceHandler.ShowUserInfo(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.JSON(200, gin.H{
 				"links": gin.H{
 					"self":    fmt.Sprintf("http://localhost:8080/users/%d/info", message.Id),
@@ -131,26 +113,16 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 
 	users := authorized.Group("")
 	users.DELETE("", func(c *gin.Context) {
-		errors, code, _ := webserviceHandler.RemoveUser(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, _ := webserviceHandler.RemoveUser(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.Status(204)
 		}
 	})
 	users.PUT("/info", func(c *gin.Context) {
-		errors, code, message := webserviceHandler.EditUserInfo(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, message := webserviceHandler.EditUserInfo(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.JSON(201, gin.H{
 				"data": gin.H{
 					"type": "info",
@@ -177,14 +149,9 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 
 	libraries := users.Group("/libraries")
 	libraries.GET("/:libId", func(c *gin.Context) {
-		errors, code, message := webserviceHandler.ShowLibrary(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, message := webserviceHandler.ShowLibrary(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			games := []gin.H{}
 			for _, gameId := range message.GamesIds {
 				games = append(games, gin.H{
@@ -220,14 +187,9 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	libraries.POST("", func(c *gin.Context) {
-		errors, code, message := webserviceHandler.AddLibrary(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, message := webserviceHandler.AddLibrary(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.JSON(201, gin.H{
 				"data": gin.H{
 					"type": "libraries",
@@ -250,28 +212,18 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	libraries.DELETE("/:libId", func(c *gin.Context) {
-		errors, code, _ := webserviceHandler.RemoveLibrary(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, _ := webserviceHandler.RemoveLibrary(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.Status(204)
 		}
 	})
 
 	games := libraries.Group("/:libId/games")
 	games.POST("", func(c *gin.Context) {
-		errors, code, message := webserviceHandler.AddGame(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, message := webserviceHandler.AddGame(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.JSON(code, gin.H{
 				"data": gin.H{
 					"type": "games",
@@ -300,14 +252,9 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	games.POST("/:gameId", func(c *gin.Context) {
-		errors, code, message := webserviceHandler.PickGame(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, message := webserviceHandler.PickGame(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.JSON(code, gin.H{
 				"data": gin.H{
 					"type": "games",
@@ -331,14 +278,9 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		}
 	})
 	games.DELETE("/:gameId", func(c *gin.Context) {
-		errors, code, _ := webserviceHandler.RemoveGame(c)
-		if errors.Errs != nil {
-			errs := webserviceHandler.GetViewError(errors)
-			c.JSON(code, gin.H{
-				"errors": errs,
-			})
-			c.Abort()
-		} else {
+		code, _ := webserviceHandler.RemoveGame(c)
+		c.Set("code", code)
+		if c.Errors == nil {
 			c.Status(204)
 		}
 	})
