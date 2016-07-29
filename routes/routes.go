@@ -1,12 +1,12 @@
 package routes
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 
 	"game-tracker/interfaces"
 	"game-tracker/middlewares/auth"
 	"game-tracker/middlewares/errres"
+	res "game-tracker/models/responses"
 )
 
 func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
@@ -18,14 +18,8 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		tokenString, code := webserviceHandler.Login(c)
 		c.Set("code", code)
 		if c.Errors == nil {
-			c.JSON(201, gin.H{
-				"data": gin.H{
-					"type": "token",
-					"attributes": gin.H{
-						"tokenString": tokenString,
-					},
-				},
-			})
+			token := res.ViewToken(tokenString)
+			c.JSON(201, token)
 		}
 	})
 
@@ -34,77 +28,25 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		code, message := webserviceHandler.ShowUser(c)
 		c.Set("code", code)
 		if c.Errors == nil {
-			libraries := []gin.H{}
-			for _, libraryId := range message.LibraryIds {
-				libraries = append(libraries, gin.H{
-					"library": gin.H{
-						"data": gin.H{
-							"type": "libraries",
-							"id":   libraryId,
-						},
-					},
-				})
-			}
-			c.JSON(200, gin.H{
-				"links": gin.H{
-					"self": fmt.Sprintf("http://localhost:8080/users/%d", message.Id),
-				},
-				"data": gin.H{
-					"type": "users",
-					"id":   message.Id,
-					"attributes": gin.H{
-						"name": message.Name,
-					},
-					"relationships": gin.H{
-						"libraries": libraries,
-					},
-				},
-			})
+			libraries := res.ViewLibraries(message.LibraryIds)
+			users := res.ViewUser(message.Id, message.Name, libraries)
+			c.JSON(200, users)
 		}
 	})
 	unAuth.POST("", func(c *gin.Context) {
 		code, message := webserviceHandler.AddUser(c)
 		c.Set("code", code)
 		if c.Errors == nil {
-			c.JSON(201, gin.H{
-				"data": gin.H{
-					"type": "users",
-					"id":   message.Id,
-					"attributes": gin.H{
-						"name": message.Name,
-					},
-					"links": gin.H{
-						"self": fmt.Sprintf("http://localhost:8080/users/%d", message.Id),
-					},
-				},
-			})
+			users := res.ViewUser(message.Id, message.Name, nil)
+			c.JSON(201, users)
 		}
 	})
 	unAuth.GET("/:id/info", func(c *gin.Context) {
 		code, message := webserviceHandler.ShowUserInfo(c)
 		c.Set("code", code)
 		if c.Errors == nil {
-			c.JSON(200, gin.H{
-				"links": gin.H{
-					"self":    fmt.Sprintf("http://localhost:8080/users/%d/info", message.Id),
-					"related": fmt.Sprintf("http://localhost:8080/users/%d", message.Id),
-				},
-				"data": gin.H{
-					"type": "info",
-					"id":   message.Id,
-					"attributes": gin.H{
-						"content": message.Info,
-					},
-					"relationships": gin.H{
-						"owner": gin.H{
-							"data": gin.H{
-								"type": "users",
-								"id":   message.Id,
-							},
-						},
-					},
-				},
-			})
+			info := res.ViewInfo(message.Info, message.Id)
+			c.JSON(200, info)
 		}
 	})
 
@@ -123,27 +65,8 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		code, message := webserviceHandler.EditUserInfo(c)
 		c.Set("code", code)
 		if c.Errors == nil {
-			c.JSON(201, gin.H{
-				"data": gin.H{
-					"type": "info",
-					"id":   message.Id,
-					"attributes": gin.H{
-						"content": message.Info,
-					},
-					"relationships": gin.H{
-						"owner": gin.H{
-							"data": gin.H{
-								"type": "users",
-								"id":   message.Id,
-							},
-						},
-					},
-					"links": gin.H{
-						"self":    fmt.Sprintf("http://localhost:8080/users/%d/info", message.Id),
-						"related": fmt.Sprintf("http://localhost:8080/users/%d", message.Id),
-					},
-				},
-			})
+			info := res.ViewInfo(message.Info, message.Id)
+			c.JSON(201, info)
 		}
 	})
 
@@ -152,63 +75,17 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		code, message := webserviceHandler.ShowLibrary(c)
 		c.Set("code", code)
 		if c.Errors == nil {
-			games := []gin.H{}
-			for _, gameId := range message.GamesIds {
-				games = append(games, gin.H{
-					"game": gin.H{
-						"data": gin.H{
-							"type": "games",
-							"id":   gameId,
-						},
-					},
-				})
-			}
-			c.JSON(200, gin.H{
-				"links": gin.H{
-					"self": fmt.Sprintf("http://localhost:8080/users/%d/libraries/%d",
-						message.UserId, message.Id),
-					"related": fmt.Sprintf("http://localhost:8080/users/%d",
-						message.UserId),
-				},
-				"data": gin.H{
-					"type": "libraries",
-					"id":   message.Id,
-					"relationships": gin.H{
-						"games": games,
-						"owner": gin.H{
-							"data": gin.H{
-								"type": "users",
-								"id":   message.UserId,
-							},
-						},
-					},
-				},
-			})
+			games := res.ViewGames(message.GamesIds)
+			library := res.ViewLibrary(message.UserId, message.Id, games)
+			c.JSON(200, library)
 		}
 	})
 	libraries.POST("", func(c *gin.Context) {
 		code, message := webserviceHandler.AddLibrary(c)
 		c.Set("code", code)
 		if c.Errors == nil {
-			c.JSON(201, gin.H{
-				"data": gin.H{
-					"type": "libraries",
-					"id":   message.Id,
-					"relationships": gin.H{
-						"owner": gin.H{
-							"data": gin.H{
-								"type": "users",
-								"id":   message.UserId,
-							},
-						},
-					},
-					"links": gin.H{
-						"self": fmt.Sprintf("http://localhost:8080/users/%d/libraries/%d",
-							message.UserId, message.Id),
-						"related": fmt.Sprintf("http://localhost:8080/users/%d", message.UserId),
-					},
-				},
-			})
+			library := res.ViewLibrary(message.UserId, message.Id, nil)
+			c.JSON(201, library)
 		}
 	})
 	libraries.DELETE("/:libId", func(c *gin.Context) {
@@ -224,57 +101,17 @@ func CreateEngine(webserviceHandler interfaces.WebserviceHandler) *gin.Engine {
 		code, message := webserviceHandler.AddGame(c)
 		c.Set("code", code)
 		if c.Errors == nil {
-			c.JSON(code, gin.H{
-				"data": gin.H{
-					"type": "games",
-					"id":   message.Id,
-					"attributes": gin.H{
-						"name":     message.Name,
-						"producer": message.Producer,
-						"value":    message.Value,
-					},
-					"relationships": gin.H{
-						"library": gin.H{
-							"data": gin.H{
-								"type": "libraries",
-								"id":   message.LibraryId,
-							},
-						},
-					},
-					"links": gin.H{
-						"self": fmt.Sprintf("http://localhost:8080/users/%d/libraries/%d/games/%d",
-							message.UserId, message.LibraryId, message.Id),
-						"related": fmt.Sprintf("http://localhost:8080/users/%d/libraries/%d",
-							message.UserId, message.LibraryId),
-					},
-				},
-			})
+			game := res.ViewGame(message.UserId, message.LibraryId, message.Id,
+				message.Name, message.Producer, message.Value)
+			c.JSON(code, game)
 		}
 	})
 	games.POST("/:gameId", func(c *gin.Context) {
 		code, message := webserviceHandler.PickGame(c)
 		c.Set("code", code)
 		if c.Errors == nil {
-			c.JSON(code, gin.H{
-				"data": gin.H{
-					"type": "games",
-					"id":   message.Id,
-					"relationships": gin.H{
-						"library": gin.H{
-							"data": gin.H{
-								"type": "libraries",
-								"id":   message.LibraryId,
-							},
-						},
-					},
-					"links": gin.H{
-						"self": fmt.Sprintf("http://localhost:8080/users/%d/libraries/%d/games/%d",
-							message.UserId, message.LibraryId, message.Id),
-						"related": fmt.Sprintf("http://localhost:8080/users/%d/libraries/%d",
-							message.UserId, message.LibraryId),
-					},
-				},
-			})
+			game := res.ViewGame(message.UserId, message.LibraryId, message.Id, "", "", 0)
+			c.JSON(code, game)
 		}
 	})
 	games.DELETE("/:gameId", func(c *gin.Context) {
