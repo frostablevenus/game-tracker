@@ -192,7 +192,7 @@ func (interactor *ProfileInteractor) ShowLibrary(userId, libraryId int) ([]int, 
 	}
 
 	if userId != library.User.Id {
-		message := "User #%d is not allowed to see games in library #%d of user #%d"
+		message := "User #%d is not allowed to see library #%d of user #%d"
 		err := fmt.Errorf(message, userId, libraryId, library.User.Id)
 		return nil, err, 403
 	} else {
@@ -234,6 +234,28 @@ func (interactor *ProfileInteractor) RemoveLibrary(userId, libraryId int) (error
 	}
 	fmt.Printf("User #%d removed library #%d\n", user.Id, library.Id)
 	return nil, 200
+}
+
+func (interactor *ProfileInteractor) ShowGame(userId, libraryId, gameId int) (Game, error, int) {
+	user, err, code := interactor.UserRepository.FindById(userId)
+	if err != nil {
+		return Game{}, err, code
+	}
+	library, err, code := interactor.LibraryRepository.FindById(libraryId)
+	if err != nil {
+		return Game{}, err, code
+	}
+	if user.Id != library.User.Id {
+		message := "User #%d is not allowed to see games in library #%d of user #%d"
+		err := fmt.Errorf(message, user.Id, library.Id, library.User.Id)
+		return Game{}, err, 403
+	}
+
+	game, err, code := interactor.GameRepository.FindById(gameId)
+	if err != nil {
+		return Game{}, err, code
+	}
+	return game, nil, 200
 }
 
 func (interactor *ProfileInteractor) AddGame(userId, libraryId int, gameName, gameProducer string, gameValue float64) (int, error, int) {

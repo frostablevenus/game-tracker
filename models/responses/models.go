@@ -4,11 +4,16 @@ import (
 	"fmt"
 )
 
-type Relationships struct {
-	Libraries []Library `json:"libraries,omitempty"`
-	Games     []Game    `json:"games,omitempty"`
-	Owner     Owner     `json:"owner,omitempty"`
-	Library   LibOfGame `json:"library,omitempty"`
+type Links struct {
+	Self    string `json:"self,omitempty"`
+	Related string `json:"related,omitempty"`
+}
+
+type Data struct {
+	Type          string `json:"type,omitempty"`
+	Id            int    `json:"id,omitempty"`
+	Attributes    `json:"attributes,omitempty"`
+	Relationships `json:"type, omitempty"`
 }
 
 type Attributes struct {
@@ -19,22 +24,17 @@ type Attributes struct {
 	Value       float64 `json:"value,omitempty"`
 }
 
-type Links struct {
-	Self    string `json:"self,omitempty"`
-	Related string `json:"related,omitempty"`
-}
-
-type Data struct {
-	Attributes    `json:"attributes,omitempty"`
-	Type          string `json:"type,omitempty"`
-	Id            int    `json:"id,omitempty"`
-	Relationships `json:"type, omitempty"`
+type Relationships struct {
+	Libraries []Library `json:"libraries,omitempty"`
+	Games     []Game    `json:"games,omitempty"`
+	Owner     Owner     `json:"owner,omitempty"`
+	Library   LibOfGame `json:"library,omitempty"`
 }
 
 type DataLv2 struct {
-	Attributes `json:"attributes,omitempty"`
 	Type       string `json:"type,omitempty"`
 	Id         int    `json:"id,omitempty"`
+	Attributes `json:"attributes,omitempty"`
 }
 
 type Token struct {

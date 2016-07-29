@@ -20,6 +20,7 @@ type ProfileInteractor interface {
 	AddLibrary(userId int) (error, int)
 	ShowLibrary(userId, libraryId int) ([]domain.Game, error, int)
 	RemoveLibrary(userId, libraryId int) (error, int)
+	ShowGame(userId, libraryId, gameId int) (usecases.Game, error, int)
 	AddGame(userId, libraryId int, gameName, gameProducer string, gameValue float64) (int, error, int)
 	RemoveGame(userId, libraryId, gameId int) (error, int)
 	FindLoginId(username, password string) (int, error, int)
@@ -195,6 +196,35 @@ func (handler WebserviceHandler) RemoveLibrary(c *gin.Context) (int, result.Libr
 
 	message := result.LibraryDelete{Id: libraryId}
 	fmt.Printf("Deleted library #%d\n", libraryId)
+	return 200, message
+}
+
+func (handler WebserviceHandler) ShowGame(c *gin.Context) (int, result.Game) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.Error(err)
+		return 400, result.Game{}
+	}
+	libraryId, err := strconv.Atoi(c.Param("libId"))
+	if err != nil {
+		c.Error(err)
+		return 400, result.Game{}
+	}
+	gameId, err := strconv.Atoi(c.Param("gameId"))
+	if err != nil {
+		c.Error(err)
+		return 400, result.Game{}
+	}
+
+	game, err, code := handler.ProfileInteractor.ShowGame(userId, libraryId, gameId)
+	if err != nil {
+		c.Error(err)
+		return code, result.Game{}
+	}
+
+	message := result.Game{Id: game.Id, LibraryId: libraryId, UserId: userId,
+		Name: game.Name, Producer: game.Producer, Value: game.Value}
+	fmt.Printf("Printed game #%d\n", game.Id)
 	return 200, message
 }
 
