@@ -20,6 +20,7 @@ type ProfileInteractor interface {
 	AddLibrary(userId int) (error, int)
 	ShowLibrary(userId, libraryId int) ([]domain.Game, error, int)
 	RemoveLibrary(userId, libraryId int) (error, int)
+	ShowGame(userId, libraryId, gameId int) (usecases.Game, error, int)
 	AddGame(userId, libraryId int, gameName, gameProducer string, gameValue float64) (int, error, int)
 	RemoveGame(userId, libraryId, gameId int) (error, int)
 	FindLoginId(username, password string) (int, error, int)
@@ -29,34 +30,36 @@ type WebserviceHandler struct {
 	ProfileInteractor usecases.ProfileInteractor
 }
 
-func (handler WebserviceHandler) AddUser(c *gin.Context) (error, int, string) {
+func (handler WebserviceHandler) AddUser(c *gin.Context) (int, result.UserAdd) {
 	user := request.User{}
 	err := c.BindJSON(&user)
 	if err != nil {
-		return err, 400, ""
+		return 400, result.UserAdd{}
 	}
 
 	player := domain.Player{Id: user.PlayerId, Name: user.PlayerName}
 	id, err, code := handler.ProfileInteractor.AddUser(player, user.Name, user.Password)
 	if err != nil {
-		return err, code, ""
+		c.Error(err)
+		return code, result.UserAdd{}
 	}
 
-	message := fmt.Sprintf("Player '%s' (id #%d) created user #%d with username: '%s'\n",
-		player.Name, player.Id, id, user.Name)
+	message := result.UserAdd{Id: id, Name: user.Name}
 	fmt.Printf("Created user #%d\n", id)
-	return nil, 201, message
+	return 201, message
 }
 
-func (handler WebserviceHandler) ShowUser(c *gin.Context) (error, int, result.User) {
+func (handler WebserviceHandler) ShowUser(c *gin.Context) (int, result.User) {
 	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err, 400, result.User{}
+		c.Error(err)
+		return 400, result.User{}
 	}
 
 	name, libraryIds, err, code := handler.ProfileInteractor.ShowUser(userId)
 	if err != nil {
-		return err, code, result.User{}
+		c.Error(err)
+		return code, result.User{}
 	}
 
 	var message result.User
@@ -66,173 +69,246 @@ func (handler WebserviceHandler) ShowUser(c *gin.Context) (error, int, result.Us
 		message.LibraryIds = append(message.LibraryIds, libraryId)
 	}
 	fmt.Printf("Printed user #%d\n", userId)
-	return nil, 200, message
+	return 200, message
 }
 
-func (handler WebserviceHandler) RemoveUser(c *gin.Context) (error, int, string) {
+func (handler WebserviceHandler) RemoveUser(c *gin.Context) (int, result.UserDelete) {
 	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.UserDelete{}
 	}
 
 	err, code := handler.ProfileInteractor.RemoveUser(userId)
 	if err != nil {
-		return err, code, ""
+		c.Error(err)
+		return code, result.UserDelete{}
 	}
 
-	message := fmt.Sprintf("Removed user account #%d\n", userId)
+	message := result.UserDelete{Id: userId}
 	fmt.Printf("Deleted user #%d\n", userId)
-	return nil, 200, message
+	return 200, message
 }
 
-func (handler WebserviceHandler) ShowUserInfo(c *gin.Context) (error, int, result.UserInfo) {
+func (handler WebserviceHandler) ShowUserInfo(c *gin.Context) (int, result.UserInfo) {
 	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err, 400, result.UserInfo{}
+		c.Error(err)
+		return 400, result.UserInfo{}
 	}
 
 	info, err, code := handler.ProfileInteractor.ShowUserInfo(userId)
 	if err != nil {
-		return err, code, result.UserInfo{}
+		c.Error(err)
+		return code, result.UserInfo{}
 	}
 
-	var message result.UserInfo
-	message.Id = userId
-	message.Info = info
+	message := result.UserInfo{Id: userId, Info: info}
 	fmt.Printf("Printed info of user #%d\n", userId)
-	return nil, 200, message
+	return 200, message
 }
 
-func (handler WebserviceHandler) EditUserInfo(c *gin.Context) (error, int, string) {
+func (handler WebserviceHandler) EditUserInfo(c *gin.Context) (int, result.UserInfo) {
 	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.UserInfo{}
 	}
-	info := request.UserInfo{}
-	err = c.BindJSON(&info)
+	userInfo := request.UserInfo{}
+	err = c.BindJSON(&userInfo)
 	if err != nil {
-		return err, 400, ""
+		return 400, result.UserInfo{}
 	}
 
-	err, code := handler.ProfileInteractor.EditUserInfo(userId, info.Info)
+	err, code := handler.ProfileInteractor.EditUserInfo(userId, userInfo.Info)
 	if err != nil {
-		return err, code, ""
+		c.Error(err)
+		return code, result.UserInfo{}
 	}
 
-	message := fmt.Sprintf("Editted personal information for user #%d\n", userId)
+	message := result.UserInfo{Id: userId, Info: userInfo.Info}
 	fmt.Printf("Editted info of user #%d\n", userId)
-	return nil, 200, message
+	return 200, message
 }
 
-func (handler WebserviceHandler) AddLibrary(c *gin.Context) (error, int, string) {
+func (handler WebserviceHandler) AddLibrary(c *gin.Context) (int, result.LibraryAdd) {
 	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.LibraryAdd{}
 	}
 	id, err, code := handler.ProfileInteractor.AddLibrary(userId)
 	if err != nil {
-		return err, code, ""
+		c.Error(err)
+		return code, result.LibraryAdd{}
 	}
 
-	message := fmt.Sprintf("User #%d added library #%d", userId, id)
+	message := result.LibraryAdd{Id: id, UserId: userId}
 	fmt.Printf("Added library #%d\n", id)
-	return nil, 201, message
+	return 201, message
 }
 
-func (handler WebserviceHandler) ShowLibrary(c *gin.Context) (error, int, result.Library) {
+func (handler WebserviceHandler) ShowLibrary(c *gin.Context) (int, result.Library) {
 	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err, 400, result.Library{}
+		c.Error(err)
+		return 400, result.Library{}
 	}
 	libraryId, err := strconv.Atoi(c.Param("libId"))
 	if err != nil {
-		return err, 400, result.Library{}
+		c.Error(err)
+		return 400, result.Library{}
 	}
 
-	games, err, code := handler.ProfileInteractor.ShowLibrary(userId, libraryId)
+	gameIds, err, code := handler.ProfileInteractor.ShowLibrary(userId, libraryId)
 	if err != nil {
-		return err, code, result.Library{}
+		c.Error(err)
+		return code, result.Library{}
 	}
 
 	var message result.Library
 	message.Id = libraryId
 	message.UserId = userId
-	for _, game := range games {
-		message.Games = append(message.Games, result.Game{
-			Id:       game.Id,
-			Name:     game.Name,
-			Producer: game.Producer,
-			Value:    game.Value})
+	for _, gameId := range gameIds {
+		message.GamesIds = append(message.GamesIds, gameId)
 	}
 	fmt.Printf("Printed library #%d\n", libraryId)
-	return nil, 200, message
+	return 200, message
 }
 
-func (handler WebserviceHandler) RemoveLibrary(c *gin.Context) (error, int, string) {
+func (handler WebserviceHandler) RemoveLibrary(c *gin.Context) (int, result.LibraryDelete) {
 	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.LibraryDelete{}
 	}
 	libraryId, err := strconv.Atoi(c.Param("libId"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.LibraryDelete{}
 	}
 
 	err, code := handler.ProfileInteractor.RemoveLibrary(userId, libraryId)
 	if err != nil {
-		return err, code, ""
+		c.Error(err)
+		return code, result.LibraryDelete{}
 	}
 
-	message := fmt.Sprintf("User #%d removed library #%d", userId, libraryId)
+	message := result.LibraryDelete{Id: libraryId}
 	fmt.Printf("Deleted library #%d\n", libraryId)
-	return nil, 200, message
+	return 200, message
 }
 
-func (handler WebserviceHandler) AddGame(c *gin.Context) (error, int, string) {
+func (handler WebserviceHandler) ShowGame(c *gin.Context) (int, result.Game) {
 	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.Game{}
 	}
 	libraryId, err := strconv.Atoi(c.Param("libId"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.Game{}
+	}
+	gameId, err := strconv.Atoi(c.Param("gameId"))
+	if err != nil {
+		c.Error(err)
+		return 400, result.Game{}
+	}
+
+	game, err, code := handler.ProfileInteractor.ShowGame(userId, libraryId, gameId)
+	if err != nil {
+		c.Error(err)
+		return code, result.Game{}
+	}
+
+	message := result.Game{Id: game.Id, LibraryId: libraryId, UserId: userId,
+		Name: game.Name, Producer: game.Producer, Value: game.Value}
+	fmt.Printf("Printed game #%d\n", game.Id)
+	return 200, message
+}
+
+func (handler WebserviceHandler) AddGame(c *gin.Context) (int, result.Game) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.Error(err)
+		return 400, result.Game{}
+	}
+	libraryId, err := strconv.Atoi(c.Param("libId"))
+	if err != nil {
+		c.Error(err)
+		return 400, result.Game{}
 	}
 	game := request.Game{}
 	err = c.BindJSON(&game)
 	if err != nil {
-		return err, 400, ""
+		return 400, result.Game{}
 	}
 
 	id, err, code := handler.ProfileInteractor.AddGame(userId, libraryId, game.Name, game.Producer, game.Value)
 	if err != nil {
-		return err, code, ""
+		c.Error(err)
+		return code, result.Game{}
 	}
 
-	message := fmt.Sprintf("User #%d added game #%d to library #%d\n", userId, id, libraryId)
+	message := result.Game{Id: id, LibraryId: libraryId, UserId: userId, Name: game.Name,
+		Producer: game.Producer, Value: game.Value}
 	fmt.Printf("Added game #%d\n", id)
-	return nil, 201, message
+	return 201, message
 }
 
-func (handler WebserviceHandler) RemoveGame(c *gin.Context) (error, int, string) {
+func (handler WebserviceHandler) PickGame(c *gin.Context) (int, result.GameToLib) {
 	userId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.GameToLib{}
 	}
 	libraryId, err := strconv.Atoi(c.Param("libId"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.GameToLib{}
 	}
 	gameId, err := strconv.Atoi(c.Param("gameId"))
 	if err != nil {
-		return err, 400, ""
+		c.Error(err)
+		return 400, result.GameToLib{}
+	}
+
+	err, code := handler.ProfileInteractor.PickGame(userId, libraryId, gameId)
+	if err != nil {
+		c.Error(err)
+		return code, result.GameToLib{}
+	}
+
+	message := result.GameToLib{Id: gameId, LibraryId: libraryId, UserId: userId}
+	fmt.Printf("Added game #%d\n", gameId)
+	return 201, message
+}
+
+func (handler WebserviceHandler) RemoveGame(c *gin.Context) (int, result.GameToLib) {
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.Error(err)
+		return 400, result.GameToLib{}
+	}
+	libraryId, err := strconv.Atoi(c.Param("libId"))
+	if err != nil {
+		c.Error(err)
+		return 400, result.GameToLib{}
+	}
+	gameId, err := strconv.Atoi(c.Param("gameId"))
+	if err != nil {
+		c.Error(err)
+		return 400, result.GameToLib{}
 	}
 
 	err, code := handler.ProfileInteractor.RemoveGame(userId, libraryId, gameId)
 	if err != nil {
-		return err, code, ""
+		c.Error(err)
+		return code, result.GameToLib{}
 	}
-	message := fmt.Sprintf("User #%d removed game (id #%d) from library #%d\n",
-		userId, gameId, libraryId)
+
+	message := result.GameToLib{Id: gameId, LibraryId: libraryId}
 	fmt.Printf("Deleted game #%d\n", gameId)
-	return nil, 200, message
+	return 200, message
 }

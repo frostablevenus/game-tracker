@@ -1,28 +1,32 @@
 package interfaces
 
 import (
-	//"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 
 	"game-tracker/models/request"
 )
 
-func (handler WebserviceHandler) Login(c *gin.Context) (string, error, int) {
+func (handler WebserviceHandler) Login(c *gin.Context) (string, int) {
 	loginInfo := request.LoginInfo{}
 	err := c.BindJSON(&loginInfo)
 	if err != nil {
-		return "", err, 400
+		return "", 400
 	}
+
 	id, err, code := handler.ProfileInteractor.FindLoginId(loginInfo.Username, loginInfo.Password)
 	if err != nil {
-		return "", err, code
+		c.Error(err)
+		return "", code
 	}
+
 	tokenString, err := createToken(id)
 	if err != nil {
-		return "", err, 500
+		c.Error(err)
+		return "", 500
 	}
-	return tokenString, nil, 200
+
+	return tokenString, 200
 }
 
 func createToken(id int) (string, error) {
